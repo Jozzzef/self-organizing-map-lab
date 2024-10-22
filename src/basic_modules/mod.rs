@@ -1,28 +1,48 @@
 //Dependencies
-//use rand::random;
+use rand::random;
 use nalgebra as nalg;
+use nalgebra::{DMatrix, DVector};
 use std::error::Error; // Import the Error trait
 use std::fs;
 use std::path::Path;
 use std::env;
 //use csv::Reader;
 
-//Structures & Enumerations
-
-
 // SOM functions
 
-pub fn simple_som(batch_size: usize, map_size_2d:(usize,usize), input_data_file_path:String) -> nalg::DMatrix<f64> {
-    let mut map_matrix: nalg::DMatrix<f64> = nalg::DMatrix::<f64>::new_random(map_size_2d.0, map_size_2d.1);
-    let input_matrix: nalg::DMatrix<f64> = read_csv_to_matrix(input_data_file_path).unwrap();
+//SIMPLE SOM
+pub fn simple_som(
+    //params
+    input_data_file_path:String, 
+    map_size_2d:(usize,usize), 
+    batch_size: Option<usize>, 
+    label_col_index:Option<usize>
+
+) -> DMatrix<DVector<f64>> {
+    
+    let input_matrix: DMatrix<f64> = read_csv_to_matrix(input_data_file_path).unwrap();
+
+    let mut map_matrix: DMatrix<DVector<f64>> = DMatrix::from_fn(
+        map_size_2d.0, 
+        map_size_2d.1, 
+        |i,j| DVector::from_fn(
+            input_matrix.ncols(),
+            |i_2, j_2| random::<f64>()));
+
+    let batch_size = batch_size.unwrap_or(1); //default to 1
+
+    let label_col_index = label_col_index.unwrap_or(map_size_2d.1 - 1); //default to the last column
+
+    let input_matrix = input_matrix.transpose();
     print!("{input_matrix}");
+
     return map_matrix
 }
 
 
 // Helper Functions
 
-pub fn read_csv_to_matrix(path:String) -> Result<nalg::DMatrix<f64>, Box<dyn Error>>  {
+pub fn read_csv_to_matrix(path:String) -> Result<DMatrix<f64>, Box<dyn Error>>  {
     
     let relative_path = Path::new(&path);
     let current_dir = env::current_dir()?;
@@ -55,8 +75,32 @@ pub fn read_csv_to_matrix(path:String) -> Result<nalg::DMatrix<f64>, Box<dyn Err
         num_rows += 1;
     }
 
-    let matrix = nalg::DMatrix::from_row_slice(num_rows, num_cols, &data);
+    let matrix = DMatrix::from_row_slice(num_rows, num_cols, &data);
     Ok(matrix)
+}
+
+
+pub fn print_matrix_of_vectors(matrix: &DMatrix<DVector<f64>>, float_precision: usize){
+    let nrows = matrix.nrows();
+    let ncols = matrix.ncols();
+    println!("start {ncols} x {nrows} matrix");
+    println!();
+    for row in 0..nrows {
+        for col in 0..ncols {
+            let vector = &matrix[(row, col)]; // Access the vector in the matrix cell
+            print!("    [");
+            for (i, val) in vector.iter().enumerate() {
+                if i > 0 {
+                    print!(", "); // Print a comma between vector elements
+                }
+                print!("{:.prec$}", val, prec = float_precision); // Format each vector value
+            }
+            print!("]   ");
+        }
+        println!(); // Newline after each matrix row
+        println!();
+    }
+    println!("end {ncols} x {nrows} matrix");
 }
 
 pub fn euclidean_distance(){

@@ -3,14 +3,18 @@ mod basic_modules;
 
 //path statements for modules
 use basic_modules::simple_som;
+use basic_modules::print_matrix_of_vectors;
 
 //dependencies
 use nalgebra as nalg;
+use nalgebra::{DMatrix, DVector};
+use clearscreen;
 
 fn main() {
-    let vari = 3;
-    println!("Hello, world!");
-    let som_output: nalg::DMatrix<f64> = simple_som(1, (3,3), String::from("example_inputs/simple_input.csv"));
-    println!("{som_output}");
+    clearscreen::clear().expect("failed to clear screen"); //clear terminal
+    //println!("Hello, world!");
+    let som_output: DMatrix<DVector<f64>> = simple_som(String::from("example_inputs/simple_input.csv"), (3,3), None, None);
+    print_matrix_of_vectors(&som_output, 3);
+    //println!("{som_output}");
     println!("exit");
 }
