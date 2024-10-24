@@ -212,7 +212,8 @@ pub fn neighbourhood_update<T, N>(bmu:DVector<T>, bmu_index:Vec<usize>, map:DMat
 
     //now that neighbourhood sets are defined
     //update all values based on the following generalized formula:
-        //
+        // current_element = current_element + changing_standardized_gaussian(x=neighbourhood_level)*(x_input - current_element)
+        // changing_standardized_gaussian:= 
     for j in 0..set_of_neighbourhoods.len() {
         //distance_calc(DistanceType::MatrixNeighbourhood, bmu, bmu);
     }
