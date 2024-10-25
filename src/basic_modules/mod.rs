@@ -244,7 +244,7 @@ pub fn get_best_matching_unit<T>(x: DVector<T>, map:&DMatrix<DVector<T>>) -> (DV
 
 
 
-pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:usize, n_input_vectors: usize, map_dim:(usize, usize), lambda: f64, effect_prop: f64) -> f64{
+pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:usize, map_dim:(usize, usize), lambda: f64, effect_prop: f64) -> f64{
     // make effect prop more user friendly, since its going to be a small value. Shadow the paramter.
     let effect_prop = 1.0 + (effect_prop / 10.0);
     
