@@ -6,6 +6,8 @@ use std::error::Error; // Import the Error trait
 use std::fs;
 use std::path::Path;
 use std::env;
+use std::collections::HashSet;
+use std::f64::consts::PI;
 //use csv::Reader;
 
 // SOM functions
@@ -168,7 +170,7 @@ pub fn distance_calc<T>(distance_type:DistanceType, v:DVector<T>, w:DVector<T>){
 
 
 
-pub fn neighbourhood_update<T, N>(bmu:DVector<T>, bmu_index:Vec<usize>, map:DMatrix<DVector<T>>) -> DMatrix<DVector<T>> {
+pub fn neighbourhood_update<T, N>(input_vec:DVector<T>, bmu:DVector<T>, bmu_index:Vec<usize>, map:DMatrix<DVector<T>>) -> DMatrix<DVector<T>> {
     
     //**should probably memoize the neighbourhood set creation for all possible bmus
 
@@ -176,38 +178,44 @@ pub fn neighbourhood_update<T, N>(bmu:DVector<T>, bmu_index:Vec<usize>, map:DMat
     //the elements are the indices (i,j) of each element within a neighbourhood, 
     //the number of the nieghbouhood is ordered from 0 to k, where 0 is the bmu vector, k is the further neighbourhood
     let mut set_of_neighbourhoods: Vec<Vec<Vec<usize>>> = Vec::new();
-    let mut index_while_loop: usize = 0;
+    let mut n: usize = 0;
+    let range_neighbourhood_indices = cartesian_product(vec![(0..(map.ncols())).collect::<Vec<usize>>(), (0..(map.nrows())).collect::<Vec<usize>>()]);
 
     loop {
-        if index_while_loop == 0 {
+        if n == 0 {
             //bmu is the neighbourhood 0, wrap in another vector for type rules
             set_of_neighbourhoods.push(vec![bmu_index.clone()]);
         } else {
             //build possible sets, same index as the bmu_index elements indexes
             let mut possible_neigh_indices: Vec<Vec<usize>>  = Vec::new();
             for index_val in &bmu_index {
-                //index_while_loop denotes the level of neighbourhood, the number of "steps" away it is from the bmu
-                let start = index_val - index_while_loop;
-                let end = index_val + index_while_loop + 1;
+                //n denotes the level of neighbourhood, the number of "steps" away it is from the bmu
+                let start = index_val - n;
+                let end = index_val + n + 1;
                 let vec_from_range: Vec<usize> = (start..end).collect();
                 possible_neigh_indices.push(vec_from_range)
             }
             
+            //this neighbourhoods possible range of values. still needs to remove the inner ones beloning to other neighbourhoods
             let mut neighbourhood_indices = cartesian_product(possible_neigh_indices);
 
-            for i in 0..index_while_loop {
+            for i in 0..n {
                 //remove all the interior elements which belong to other neighbourhoods, since the cartesian product outputs them all
                 set_difference_for_nested_vectors(&mut neighbourhood_indices, &set_of_neighbourhoods[i]);
             }
 
-            if neighbourhood_indices.len() == 0 {
-                break;
-            }
+            //remove anything that cannot be in the map
+            intersection_of_nested_vectors(&mut neighbourhood_indices, &range_neighbourhood_indices);
 
+            //if nothing in this neighbourhood, then finished building neighbourhoods
+            if neighbourhood_indices.len() == 0 {break;}
+
+            //add to set of neighbourhoods
             set_of_neighbourhoods.push(neighbourhood_indices);
         }
 
-        index_while_loop += 1;
+        //index of our neighbourhood
+        n += 1;
     }
 
     //now that neighbourhood sets are defined
@@ -216,6 +224,7 @@ pub fn neighbourhood_update<T, N>(bmu:DVector<T>, bmu_index:Vec<usize>, map:DMat
         // changing_standardized_gaussian:= gaussian starts wide during training, ends thin near end of training
     for j in 0..set_of_neighbourhoods.len() {
         //distance_calc(DistanceType::MatrixNeighbourhood, bmu, bmu);
+
     }
 
     return map
@@ -229,6 +238,19 @@ pub fn get_best_matching_unit<T>(x: DVector<T>, map:&DMatrix<DVector<T>>) -> (DV
 
     //return (bmu vector, it's ordered indices to locate it within the map)
     return (x, vec![1,2,3])
+}
+
+
+
+
+pub fn changing_standardized_gaussian(neigh_level: f64, current_input_index:usize, n_input_vectors: usize) -> f64{
+    // sigma changes linearly, larger to small, 
+    // start off condition: integral of gaussian (from x -> infin), where x=max{map's (ncols, nrows)}, is equal to .1. (1000 is used instead of infin)
+    // end off condition: integral of gaussian (from x -> infin), where x=1, is equal to .1
+    let sigma = 1.0;
+
+    //custom gaussian e^{-zx^2}, z=sigma
+    return (-1.0 * sigma * neigh_level.powi(2)).exp()
 }
 
 
@@ -279,4 +301,19 @@ where
     None
 }
 
+
+
+pub fn intersection_of_nested_vectors<T>(v: &mut Vec<Vec<T>>, w: &Vec<Vec<T>>) -> Option<()> 
+where
+    T: PartialEq + Eq + Clone + std::hash::Hash,
+{
+    // Convert `w` to a HashSet for faster lookups
+    let w_set: HashSet<_> = w.iter().collect();
+
+    // Retain only those elements in `v` that are present in `w`
+    v.retain(|vec_v| w_set.contains(vec_v));
+
+    // Since we're modifying `v` in place, return None
+    None
+}
 //change_shape_of_map function? How to implement change of basis to accomplish this??
