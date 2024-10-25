@@ -8,6 +8,7 @@ use std::path::Path;
 use std::env;
 use std::collections::HashSet;
 use std::f64::consts::PI;
+use std::cmp::max as tuple_max;
 //use csv::Reader;
 
 // SOM functions
@@ -243,14 +244,39 @@ pub fn get_best_matching_unit<T>(x: DVector<T>, map:&DMatrix<DVector<T>>) -> (DV
 
 
 
-pub fn changing_standardized_gaussian(neigh_level: f64, current_input_index:usize, n_input_vectors: usize) -> f64{
-    // sigma changes linearly, larger to small, 
-    // start off condition: integral of gaussian (from x -> infin), where x=max{map's (ncols, nrows)}, is equal to .1. (1000 is used instead of infin)
-    // end off condition: integral of gaussian (from x -> infin), where x=1, is equal to .1
-    let sigma = 1.0;
+pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:usize, n_input_vectors: usize, map_dim:(usize, usize), lambda: f64, effect_prop: f64) -> f64{
+    // make effect prop more user friendly, since its going to be a small value. Shadow the paramter.
+    let effect_prop = 1.0 + (effect_prop / 10.0);
+    
+    // start off condition: integral of gaussian (from x -> infin), where x=max{map's (ncols, nrows)} i.e. the max neigh level, is equal to .1. (1000 is used instead of infin)
+    // let sigma=y, let effect_prop=a=1, and g(x,y)=e^{-yx^2}, solve definite integral euqation: G(1000)-G(sigma)=-.1 -> sigma = G^{-1}(G[1000] - .1) to receive:
+    // sigma = ( -ln[ -x^2 * ( -e^{-x^2 * 1000}/x^2 -.1 ) ] ) / x^2
+    // this is the initial sigma value
+    // the larger the sigma, the smaller the width of the gaussian, therefore call it inverse sigma
+    let x = tuple_max(map_dim.0 , map_dim.1) as f64;
+    let mut inv_sigma = -f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * effect_prop / x.powi(2) - 0.1) / effect_prop) / x.powi(2);
 
-    //custom gaussian e^{-zx^2}, z=sigma
-    return (-1.0 * sigma * neigh_level.powi(2)).exp()
+    // inv_sigma changes linearly, larger to small
+    // lambda = the constant of change, this iteratively gets multiplied to inv_sigma to increase inv_sigma's value over time
+    
+    inv_sigma *= lambda * (current_input_index as f64);
+
+    // check if minimal gaussian width condition is met
+    // end off condition: integral of gaussian (from x -> infin), where x=1, is ge or equal to .1. i.e. G(1000)-G(neigh_level) <= .1 ==> use the minimal value
+    // G = ((-1/100 (e^{-100y}))
+    let mut greater_bound_inv_sigma = 2.3025850929940455; // pre calculated, since effect prop = 1 will likely be the most popular value, can add others later
+    let one: f64 = 1.0;
+    if effect_prop != 1.0 {
+        greater_bound_inv_sigma = -f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * effect_prop / one.powi(2) - 0.1) / effect_prop) / one.powi(2);
+    }
+    
+    if inv_sigma > greater_bound_inv_sigma {
+        inv_sigma = greater_bound_inv_sigma;
+    }
+
+    //custom gaussian ae^{-yx^2}, y=inverse sigma, a = effect size
+    let neigh_level = neigh_level as f64;
+    return (-1.0 * effect_prop * inv_sigma * neigh_level.powi(2)).exp()
 }
 
 
