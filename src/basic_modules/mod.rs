@@ -42,11 +42,15 @@ pub fn simple_som(
 
 
     //loop starts here
-    //calculate Best Matching Unit, i.e. matching vector = the vector with the smallest distance to the input vector
-    //distance_calc(DistanceType::Euclidean);
 
-    //update neighbourhood
-    //neighbourhood_update();
+    for j in 0..input_matrix.ncols() {
+        //calculate Best Matching Unit, i.e. matching vector = the vector with the smallest distance to the input vector
+        let column_vector = DVector::from_column_slice(&input_matrix.column(j).as_slice());
+        let bmu = get_best_matching_unit(&column_vector, &map_matrix, &DistanceType::Euclidean);
+
+        //update neighbourhood
+        //neighbourhood_update();
+    }
 
     return map_matrix
 }
@@ -137,42 +141,42 @@ pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<T>, w:&DVector<T
         DistanceType::Euclidean => {
             println!("Handling Euclidean distance");
             // Add your logic for Euclidean distance here
-            return 0
+            return 0.0
         },
         DistanceType::Minkowski => {
             println!("Handling Minkowski distance");
             // Add your logic for Minkowski distance here
-            return 0
+            return 0.0
         },
         DistanceType::Correlation => {
             println!("Handling Correlation distance");
             // Add your logic for Correlation distance here
-            return 0
+            return 0.0
         },
         DistanceType::TanimotoSimilarity => {
             println!("Handling Tanimoto Similarity");
             // Add your logic for Tanimoto Similarity here
-            return 0
+            return 0.0
         },
         DistanceType::Levenshtein => {
             println!("Handling Levenshtein distance");
             // Add your logic for Levenshtein distance here
-            return 0
+            return 0.0
         },
         DistanceType::Entropy => {
             println!("Handling Entropy-based distance");
             // Add your logic for Entropy here
-            return 0
+            return 0.0
         },
         DistanceType::Hamming => {
             println!("Handling Hamming distance");
             // Add your logic for Hamming distance here
-            return 0
+            return 0.0
         },
         DistanceType::MatrixNeighbourhood => {
             println!("Handling Matrix Neighbourhood distance");
             // Add your logic for Matrix Neighbourhood
-            return 0
+            return 0.0
         }
     }
 }
@@ -206,17 +210,17 @@ pub fn get_best_matching_unit<T: Clone>(y: &DVector<T>, som_map:&DMatrix<DVector
 
 
 
-pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:usize, map_dim:(usize, usize), lambda: f64, effect_prop: f64) -> f64{
-    // make effect prop more user friendly, since its going to be a small value. Shadow the paramter.
-    let effect_prop = 1.0 + (effect_prop / 10.0);
+pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:usize, map_dim:(usize, usize), lambda: f64, learning_rate: f64) -> f64{
+    // make learning rate (i.e. how much effect the gaussian has) more user friendly, since its going to be a small value. Shadow the paramter.
+    let learning_rate = 1.0 + (learning_rate / 10.0);
     
     // start off condition: integral of gaussian (from x -> infin), where x=max{map's (ncols, nrows)} i.e. the max neigh level, is equal to .1. (1000 is used instead of infin)
-    // let sigma=y, let effect_prop=a=1, and g(x,y)=e^{-yx^2}, solve definite integral euqation: G(1000)-G(sigma)=-.1 -> sigma = G^{-1}(G[1000] - .1) to receive:
+    // let sigma=y, let learning_rate=a=1, and g(x,y)=e^{-yx^2}, solve definite integral euqation: G(1000)-G(sigma)=-.1 -> sigma = G^{-1}(G[1000] - .1) to receive:
     // sigma = ( -ln[ -x^2 * ( -e^{-x^2 * 1000}/x^2 -.1 ) ] ) / x^2
     // this is the initial sigma value
     // the larger the sigma, the smaller the width of the gaussian, therefore call it inverse sigma
     let x = tuple_max(map_dim.0 , map_dim.1) as f64;
-    let mut inv_sigma = -f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * effect_prop / x.powi(2) - 0.1) / effect_prop) / x.powi(2);
+    let mut inv_sigma = -f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * learning_rate / x.powi(2) - 0.1) / learning_rate) / x.powi(2);
 
     // inv_sigma changes linearly, larger to small
     // lambda = the constant of change, this iteratively gets multiplied to inv_sigma to increase inv_sigma's value over time
@@ -228,8 +232,8 @@ pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:us
     // G = ((-1/100 (e^{-100y}))
     let mut greater_bound_inv_sigma = 2.3025850929940455; // pre calculated, since effect prop = 1 will likely be the most popular value, can add others later
     let one: f64 = 1.0;
-    if effect_prop != 1.0 {
-        greater_bound_inv_sigma = -f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * effect_prop / one.powi(2) - 0.1) / effect_prop) / one.powi(2);
+    if learning_rate != 1.0 {
+        greater_bound_inv_sigma = -f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * learning_rate / one.powi(2) - 0.1) / learning_rate) / one.powi(2);
     }
     
     if inv_sigma > greater_bound_inv_sigma {
@@ -238,7 +242,7 @@ pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:us
 
     //custom gaussian ae^{-yx^2}, y=inverse sigma, a = effect size
     let neigh_level = neigh_level as f64;
-    return (-1.0 * effect_prop * inv_sigma * neigh_level.powi(2)).exp()
+    return (-1.0 * learning_rate * inv_sigma * neigh_level.powi(2)).exp()
 }
 
 
@@ -252,11 +256,11 @@ pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, distance_typ
     //gen_med = argmin_m{\sum_{i \in S} distance(i,m)}
     //handles abstract types automatically because of distance_calc func usage
     let mut min_distance_index: usize = 0; // the index of that minimal distance vector
-    let mut min_sum_distance: f64 = 0; // the distance of that minimal distance vector
+    let mut min_sum_distance: f64 = 0.0; // the distance of that minimal distance vector
     let mut has_first_loop_occured : bool = false;
     
     for i in 0..(batch_vectors.len()) {
-        let mut curr_dist_sum: f64 = 0;
+        let mut curr_dist_sum: f64 = 0.0;
         
         for j in 0..(batch_vectors.len()) {
             let v = &batch_vectors[i];
