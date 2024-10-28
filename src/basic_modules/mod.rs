@@ -130,40 +130,48 @@ pub enum DistanceType {
     MatrixNeighbourhood
 }
 
-pub fn distance_calc<T>(distance_type:DistanceType, v:DVector<T>, w:DVector<T>){
+pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<T>, w:&DVector<T>) -> isize{
 
     match distance_type {
         DistanceType::Euclidean => {
             println!("Handling Euclidean distance");
             // Add your logic for Euclidean distance here
+            return 0
         },
         DistanceType::Minkowski => {
             println!("Handling Minkowski distance");
             // Add your logic for Minkowski distance here
+            return 0
         },
         DistanceType::Correlation => {
             println!("Handling Correlation distance");
             // Add your logic for Correlation distance here
+            return 0
         },
         DistanceType::TanimotoSimilarity => {
             println!("Handling Tanimoto Similarity");
             // Add your logic for Tanimoto Similarity here
+            return 0
         },
         DistanceType::Levenshtein => {
             println!("Handling Levenshtein distance");
             // Add your logic for Levenshtein distance here
+            return 0
         },
         DistanceType::Entropy => {
             println!("Handling Entropy-based distance");
             // Add your logic for Entropy here
+            return 0
         },
         DistanceType::Hamming => {
             println!("Handling Hamming distance");
             // Add your logic for Hamming distance here
+            return 0
         },
         DistanceType::MatrixNeighbourhood => {
             println!("Handling Matrix Neighbourhood distance");
             // Add your logic for Matrix Neighbourhood
+            return 0
         }
     }
 }
@@ -282,10 +290,40 @@ pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:us
 
 
 
-pub fn generalized_median<T>(batch_vectors: Vec<DVector<T>>) -> DVector<T>{
-    //handle types automatically
+pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, is_median_in_set_already: bool, distance_type:&'a DistanceType) -> &'a DVector<T>{
+    //the generalized definition of a median of a set of objects is "a new object which has the smallest sum of distances to all objects in that set".
+    //an optional requirement is that the median has to already be a member of the existing set. 
+        //it is enforced here for efficiency purposes. 
+        //A generalized mean should be used for the case where it is not necessarily in the batch vector set but in the algebraic set.
+    //gen_med = argmin_m{\sum_{i \in S} distance(i,m)}
+    //handles abstract types automatically because of distance_calc func usage
+    let mut min_distance_index: usize = 0; // the index of that minimal distance vector
+    let mut min_sum_distance: isize = 0; // the distance of that minimal distance vector
+    let mut has_first_loop_occured : bool = false;
+    
+    for i in 0..(batch_vectors.len()) {
+        let mut curr_dist_sum: isize = 0;
+        
+        for j in 0..(batch_vectors.len()) {
+            let v = &batch_vectors[i];
+            let w = &batch_vectors[j];
+            curr_dist_sum = curr_dist_sum + distance_calc(distance_type, v, w);
+        }
+        
+        if has_first_loop_occured {
+            if curr_dist_sum < min_sum_distance {
+                min_sum_distance = curr_dist_sum;
+                min_distance_index = i;
+            }
+        }
+        else {
+            min_sum_distance = curr_dist_sum;
+            // min_distance_index already set to zero
+            has_first_loop_occured = true;
+        }
+    }
 
-    return batch_vectors[0]
+    return &batch_vectors[min_distance_index]
 }
 
 
@@ -329,11 +367,13 @@ where
 
 
 
+
 pub fn intersection_of_nested_vectors<T>(v: &mut Vec<Vec<T>>, w: &Vec<Vec<T>>) -> Option<()> 
 where
     T: PartialEq + Eq + Clone + std::hash::Hash,
 {
     // Convert `w` to a HashSet for faster lookups
+    // the underscore (_) in HashSet<_> is a type placeholder that tells the compiler to infer the type automatically. 
     let w_set: HashSet<_> = w.iter().collect();
 
     // Retain only those elements in `v` that are present in `w`
@@ -342,4 +382,6 @@ where
     // Since we're modifying `v` in place, return None
     None
 }
+
+
 //change_shape_of_map function? How to implement change of basis to accomplish this??
