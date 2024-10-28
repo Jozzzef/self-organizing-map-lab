@@ -2,7 +2,8 @@
 use rand::random;
 use nalgebra as nalg;
 use nalgebra::{DMatrix, DVector};
-use std::error::Error; // Import the Error trait
+use std::error::Error; use std::fmt::Debug;
+// Import the Error trait
 use std::fs;
 use std::path::Path;
 use std::env;
@@ -130,7 +131,7 @@ pub enum DistanceType {
     MatrixNeighbourhood
 }
 
-pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<T>, w:&DVector<T>) -> isize{
+pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<T>, w:&DVector<T>) -> f64{
 
     match distance_type {
         DistanceType::Euclidean => {
@@ -179,11 +180,27 @@ pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<T>, w:&DVector<T
 
 
 
-pub fn get_best_matching_unit<T>(x: DVector<T>, map:&DMatrix<DVector<T>>) -> (DVector<T>, Vec<usize>){
-    //handle types automatically
-
-    //return (bmu vector, it's ordered indices to locate it within the map)
-    return (x, vec![1,2,3])
+pub fn get_best_matching_unit<T: Clone>(y: &DVector<T>, som_map:&DMatrix<DVector<T>>, distance_type:&DistanceType) -> (DVector<T>, (usize,usize), f64){
+    //handles abstract types automatically because of distance_calc func usage
+    let mut min_distance: f64 = 0.0;
+    let mut min_distance_index: (usize,usize) = (0,0);
+    let mut is_first_loop: bool = true;
+    // Apply a transformation to each element in place
+    for i in 0..som_map.nrows() {
+        for j in 0..som_map.ncols() {
+            // Access each element by mutable reference
+            let curr_dist = distance_calc(distance_type, y, &som_map[(i, j)]);
+            if !is_first_loop && curr_dist < min_distance{
+                min_distance = curr_dist;
+                min_distance_index = (i,j);
+            } else {
+                min_distance = curr_dist;
+                is_first_loop = false;
+            }
+        }
+    }
+    let min_vector : DVector<T> = som_map[min_distance_index].clone();
+    return (min_vector, min_distance_index, min_distance) //(bmu vector value, it's index in matrix, it's distance from y)
 }
 
 
@@ -235,11 +252,11 @@ pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, distance_typ
     //gen_med = argmin_m{\sum_{i \in S} distance(i,m)}
     //handles abstract types automatically because of distance_calc func usage
     let mut min_distance_index: usize = 0; // the index of that minimal distance vector
-    let mut min_sum_distance: isize = 0; // the distance of that minimal distance vector
+    let mut min_sum_distance: f64 = 0; // the distance of that minimal distance vector
     let mut has_first_loop_occured : bool = false;
     
     for i in 0..(batch_vectors.len()) {
-        let mut curr_dist_sum: isize = 0;
+        let mut curr_dist_sum: f64 = 0;
         
         for j in 0..(batch_vectors.len()) {
             let v = &batch_vectors[i];
