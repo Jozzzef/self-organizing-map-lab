@@ -214,7 +214,7 @@ pub fn neighbourhood_update<T, N>(input_vec:DVector<T>, bmu:DVector<T>, bmu_inde
             }
 
             //remove anything that cannot be in the map
-            intersection_of_nested_vectors(&mut neighbourhood_indices, &range_neighbourhood_indices);
+            set_intersection_of_nested_vectors(&mut neighbourhood_indices, &range_neighbourhood_indices);
 
             //if nothing in this neighbourhood, then finished building neighbourhoods
             if neighbourhood_indices.len() == 0 {break;}
@@ -368,7 +368,7 @@ where
 
 
 
-pub fn intersection_of_nested_vectors<T>(v: &mut Vec<Vec<T>>, w: &Vec<Vec<T>>) -> Option<()> 
+pub fn set_intersection_of_nested_vectors<T>(v: &mut Vec<Vec<T>>, w: &Vec<Vec<T>>) -> Option<()> 
 where
     T: PartialEq + Eq + Clone + std::hash::Hash,
 {
