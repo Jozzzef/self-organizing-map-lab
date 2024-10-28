@@ -179,69 +179,6 @@ pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<T>, w:&DVector<T
 
 
 
-pub fn neighbourhood_update<T, N>(input_vec:DVector<T>, bmu:DVector<T>, bmu_index:Vec<usize>, map:DMatrix<DVector<T>>) -> DMatrix<DVector<T>> {
-    
-    //**should probably memoize the neighbourhood set creation for all possible bmus
-
-    //create neighbourhood sets
-    //the elements are the indices (i,j) of each element within a neighbourhood, 
-    //the number of the nieghbouhood is ordered from 0 to k, where 0 is the bmu vector, k is the further neighbourhood
-    let mut set_of_neighbourhoods: Vec<Vec<Vec<usize>>> = Vec::new();
-    let mut n: usize = 0;
-    let range_neighbourhood_indices = cartesian_product(vec![(0..(map.ncols())).collect::<Vec<usize>>(), (0..(map.nrows())).collect::<Vec<usize>>()]);
-
-    loop {
-        if n == 0 {
-            //bmu is the neighbourhood 0, wrap in another vector for type rules
-            set_of_neighbourhoods.push(vec![bmu_index.clone()]);
-        } else {
-            //build possible sets, same index as the bmu_index elements indexes
-            let mut possible_neigh_indices: Vec<Vec<usize>>  = Vec::new();
-            for index_val in &bmu_index {
-                //n denotes the level of neighbourhood, the number of "steps" away it is from the bmu
-                let start = index_val - n;
-                let end = index_val + n + 1;
-                let vec_from_range: Vec<usize> = (start..end).collect();
-                possible_neigh_indices.push(vec_from_range)
-            }
-            
-            //this neighbourhoods possible range of values. still needs to remove the inner ones beloning to other neighbourhoods
-            let mut neighbourhood_indices = cartesian_product(possible_neigh_indices);
-
-            for i in 0..n {
-                //remove all the interior elements which belong to other neighbourhoods, since the cartesian product outputs them all
-                set_difference_for_nested_vectors(&mut neighbourhood_indices, &set_of_neighbourhoods[i]);
-            }
-
-            //remove anything that cannot be in the map
-            set_intersection_of_nested_vectors(&mut neighbourhood_indices, &range_neighbourhood_indices);
-
-            //if nothing in this neighbourhood, then finished building neighbourhoods
-            if neighbourhood_indices.len() == 0 {break;}
-
-            //add to set of neighbourhoods
-            set_of_neighbourhoods.push(neighbourhood_indices);
-        }
-
-        //index of our neighbourhood
-        n += 1;
-    }
-
-    //now that neighbourhood sets are defined
-    //update all values based on the following generalized formula:
-        // current_element = current_element + changing_standardized_gaussian(x=neighbourhood_level)*(x_input - current_element)
-        // changing_standardized_gaussian:= gaussian starts wide during training, ends thin near end of training
-    for j in 0..set_of_neighbourhoods.len() {
-        //distance_calc(DistanceType::MatrixNeighbourhood, bmu, bmu);
-
-    }
-
-    return map
-}
-
-
-
-
 pub fn get_best_matching_unit<T>(x: DVector<T>, map:&DMatrix<DVector<T>>) -> (DVector<T>, Vec<usize>){
     //handle types automatically
 
@@ -290,7 +227,7 @@ pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:us
 
 
 
-pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, is_median_in_set_already: bool, distance_type:&'a DistanceType) -> &'a DVector<T>{
+pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, distance_type:&'a DistanceType) -> &'a DVector<T>{
     //the generalized definition of a median of a set of objects is "a new object which has the smallest sum of distances to all objects in that set".
     //an optional requirement is that the median has to already be a member of the existing set. 
         //it is enforced here for efficiency purposes. 
@@ -382,6 +319,70 @@ where
     // Since we're modifying `v` in place, return None
     None
 }
+
+
+
+
+pub fn neighbourhood_update<T, N>(input_vec:DVector<T>, bmu:DVector<T>, bmu_index:Vec<usize>, map:DMatrix<DVector<T>>) -> DMatrix<DVector<T>> {
+    
+    //**should probably memoize the neighbourhood set creation for all possible bmus
+
+    //create neighbourhood sets
+    //the elements are the indices (i,j) of each element within a neighbourhood, 
+    //the number of the nieghbouhood is ordered from 0 to k, where 0 is the bmu vector, k is the further neighbourhood
+    let mut set_of_neighbourhoods: Vec<Vec<Vec<usize>>> = Vec::new();
+    let mut n: usize = 0;
+    let range_neighbourhood_indices = cartesian_product(vec![(0..(map.ncols())).collect::<Vec<usize>>(), (0..(map.nrows())).collect::<Vec<usize>>()]);
+
+    loop {
+        if n == 0 {
+            //bmu is the neighbourhood 0, wrap in another vector for type rules
+            set_of_neighbourhoods.push(vec![bmu_index.clone()]);
+        } else {
+            //build possible sets, same index as the bmu_index elements indexes
+            let mut possible_neigh_indices: Vec<Vec<usize>>  = Vec::new();
+            for index_val in &bmu_index {
+                //n denotes the level of neighbourhood, the number of "steps" away it is from the bmu
+                let start = index_val - n;
+                let end = index_val + n + 1;
+                let vec_from_range: Vec<usize> = (start..end).collect();
+                possible_neigh_indices.push(vec_from_range)
+            }
+            
+            //this neighbourhoods possible range of values. still needs to remove the inner ones beloning to other neighbourhoods
+            let mut neighbourhood_indices = cartesian_product(possible_neigh_indices);
+
+            for i in 0..n {
+                //remove all the interior elements which belong to other neighbourhoods, since the cartesian product outputs them all
+                set_difference_for_nested_vectors(&mut neighbourhood_indices, &set_of_neighbourhoods[i]);
+            }
+
+            //remove anything that cannot be in the map
+            set_intersection_of_nested_vectors(&mut neighbourhood_indices, &range_neighbourhood_indices);
+
+            //if nothing in this neighbourhood, then finished building neighbourhoods
+            if neighbourhood_indices.len() == 0 {break;}
+
+            //add to set of neighbourhoods
+            set_of_neighbourhoods.push(neighbourhood_indices);
+        }
+
+        //index of our neighbourhood
+        n += 1;
+    }
+
+    //now that neighbourhood sets are defined
+    //update all values based on the following generalized formula:
+        // current_element = current_element + changing_standardized_gaussian(x=neighbourhood_level)*(x_input - current_element)
+        // changing_standardized_gaussian:= gaussian starts wide during training, ends thin near end of training
+    for j in 0..set_of_neighbourhoods.len() {
+        //distance_calc(DistanceType::MatrixNeighbourhood, bmu, bmu);
+
+    }
+
+    return map
+}
+
 
 
 //change_shape_of_map function? How to implement change of basis to accomplish this??
