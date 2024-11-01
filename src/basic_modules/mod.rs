@@ -20,7 +20,8 @@ pub fn simple_som(
     input_data_file_path:String, 
     map_size_2d:(usize,usize), 
     batch_size: Option<usize>, 
-    label_col_index:Option<usize>
+    convergence_threshold: f64,
+    lambda_reduction_rate: f64
 
 ) -> DMatrix<DVector<f64>> {
     
@@ -29,29 +30,39 @@ pub fn simple_som(
     let mut map_matrix: DMatrix<DVector<f64>> = DMatrix::from_fn(
         map_size_2d.0, 
         map_size_2d.1, 
-        |i,j| DVector::from_fn(
+        |_i,_j| DVector::from_fn(
             input_matrix.ncols(),
-            |i_2, j_2| random::<f64>()));
+            |_i_2, _j_2| random::<f64>()));
 
     let batch_size = batch_size.unwrap_or(1); //default to 1
-
-    let label_col_index = label_col_index.unwrap_or(map_size_2d.1 - 1); //default to the last column
 
     let input_matrix = input_matrix.transpose();
     print!("{input_matrix}");
 
+    //create buffer of total distances at each neighbourhood update, for convergence metric
+    let mut diff_buff: Vec<f64> = vec![];
+    //convergence metric starts closer to 1 and reduces and reduces non monotonically
+    let mut convergence_metric: f64;
+    //the learning rate only decreases when the convergence metric threshold is reached
+    let mut learning_rate_lambda: f64 = 1.0;
+    //training loop starts here
+    while learning_rate_lambda != 0.0 {
+        for j in 0..input_matrix.ncols() {
+            //calculate Best Matching Unit, i.e. matching vector = the vector with the smallest distance to the input vector
+            let column_vector = DVector::from_column_slice(&input_matrix.column(j).as_slice());
+            let (bmu_vec, bmu_index, bmu_dist) = get_best_matching_unit(&column_vector, &map_matrix, &DistanceType::Euclidean);
 
-    //loop starts here
-
-    for j in 0..input_matrix.ncols() {
-        //calculate Best Matching Unit, i.e. matching vector = the vector with the smallest distance to the input vector
-        let column_vector = DVector::from_column_slice(&input_matrix.column(j).as_slice());
-        let bmu = get_best_matching_unit(&column_vector, &map_matrix, &DistanceType::Euclidean);
-
-        //update neighbourhood
-        //neighbourhood_update();
+            //update neighbourhood, updates map in place then returns the total distances from the udpate
+            let diff = neighbourhood_update(&column_vector, &bmu_vec, &bmu_index, &mut map_matrix, &learning_rate_lambda);
+            diff_buff.push(diff);
+            convergence_metric = convergence_calculator(&diff_buff, 0.2);
+            if convergence_metric <= convergence_threshold {
+                //start learning rate reduction since natural convergence reached threshold
+                let reduced_lambda = lambda_reduction_rate / 10.0;
+                learning_rate_lambda = reduced_lambda.clamp(0.0, 1.0)
+            }
+        }
     }
-
     return map_matrix
 }
 
@@ -184,7 +195,7 @@ pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<T>, w:&DVector<T
 
 
 
-pub fn get_best_matching_unit<T: Clone>(y: &DVector<T>, som_map:&DMatrix<DVector<T>>, distance_type:&DistanceType) -> (DVector<T>, (usize,usize), f64){
+pub fn get_best_matching_unit<T: Clone>(y: &DVector<T>, som_map:&DMatrix<DVector<T>>, distance_type:&DistanceType) -> (DVector<T>, Vec<usize>, f64){
     //handles abstract types automatically because of distance_calc func usage
     let mut min_distance: f64 = 0.0;
     let mut min_distance_index: (usize,usize) = (0,0);
@@ -204,7 +215,7 @@ pub fn get_best_matching_unit<T: Clone>(y: &DVector<T>, som_map:&DMatrix<DVector
         }
     }
     let min_vector : DVector<T> = som_map[min_distance_index].clone();
-    return (min_vector, min_distance_index, min_distance) //(bmu vector value, it's index in matrix, it's distance from y)
+    return (min_vector, vec![min_distance_index.0, min_distance_index.1], min_distance) //(bmu vector value, it's index in matrix, it's distance from y)
 }
 
 
@@ -344,7 +355,7 @@ where
 
 
 
-pub fn neighbourhood_update<T, N>(input_vec:DVector<T>, bmu:DVector<T>, bmu_index:Vec<usize>, map:DMatrix<DVector<T>>) -> DMatrix<DVector<T>> {
+pub fn neighbourhood_update<T>(input_vec:&DVector<T>, bmu:&DVector<T>, bmu_index:&Vec<usize>, map:&mut DMatrix<DVector<T>>, lambda:&f64) -> f64 {
     
     //**should probably memoize the neighbourhood set creation for all possible bmus
 
@@ -362,7 +373,7 @@ pub fn neighbourhood_update<T, N>(input_vec:DVector<T>, bmu:DVector<T>, bmu_inde
         } else {
             //build possible sets, same index as the bmu_index elements indexes
             let mut possible_neigh_indices: Vec<Vec<usize>>  = Vec::new();
-            for index_val in &bmu_index {
+            for index_val in bmu_index {
                 //n denotes the level of neighbourhood, the number of "steps" away it is from the bmu
                 let start = index_val - n;
                 let end = index_val + n + 1;
@@ -401,9 +412,29 @@ pub fn neighbourhood_update<T, N>(input_vec:DVector<T>, bmu:DVector<T>, bmu_inde
 
     }
 
-    return map //add: return total difference
+    let total_difference = 0.0;
+    return total_difference
 }
 
+
+
+
+pub fn slice_average(slice: &[f64]) -> f64 {
+    let sum: f64 = slice.iter().sum();
+    sum / slice.len() as f64
+}
+
+pub fn convergence_calculator(diff_buffer: &Vec<f64>, comparison_size:f64) -> f64 { 
+    // Clamp value into range (0, 1].
+    let comparison_size_clamped = comparison_size.clamp(0.001, 1.0);
+    let upper_border = (diff_buffer.len() as f64 * comparison_size_clamped) as usize;
+    let lower_border = diff_buffer.len() - upper_border;
+    let upper_avg = slice_average(&diff_buffer[0..upper_border]);
+    let lower_avg = slice_average(&diff_buffer[lower_border..(diff_buffer.len()-1)]);
+    let convergence_metric = lower_avg / upper_avg;
+    
+    return convergence_metric //return the proprtion of the newer total distances vs the first total distances. 
+}
 
 
 //change_shape_of_map function? How to implement change of basis to accomplish this??
