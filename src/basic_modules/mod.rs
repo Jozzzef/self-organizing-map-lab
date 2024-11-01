@@ -401,7 +401,7 @@ pub fn neighbourhood_update<T, N>(input_vec:DVector<T>, bmu:DVector<T>, bmu_inde
 
     }
 
-    return map
+    return map //add: return total difference
 }
 
 
