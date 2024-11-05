@@ -1,16 +1,12 @@
 //Dependencies
 use rand::random;
-use nalgebra as nalg;
 use nalgebra::{DMatrix, DVector};
-use std::error::Error; use std::fmt::Debug;
-// Import the Error trait
-use std::fs;
-use std::path::Path;
-use std::env;
-use std::collections::HashSet;
-use std::f64::consts::PI;
 use std::cmp::max as tuple_max;
-//use csv::Reader;
+
+mod math_helpers;
+pub use math_helpers::*;
+mod text_helpers;
+pub use text_helpers::*;
 
 // SOM functions
 
@@ -67,134 +63,7 @@ pub fn simple_som(
 }
 
 
-// Helper Functions ----------------------------------------------------------------
-
-pub fn read_csv_to_matrix(path:String) -> Result<DMatrix<f64>, Box<dyn Error>>  {
-    
-    let relative_path = Path::new(&path);
-    let current_dir = env::current_dir()?;
-    let combined_path = current_dir.join(relative_path);
-    let absolute_path = fs::canonicalize(combined_path)?;
-
-    // Create a CSV reader using the default settings
-    let mut rdr = csv::Reader::from_path(absolute_path)?;
-    // Skip the first row (header row)
-    let _headers = rdr.headers()?; 
-
-    // Initialize a vector to hold the flat data from the CSV
-    let mut data: Vec<f64> = Vec::new();
-    let mut num_rows = 0;
-    let mut num_cols = 0;
-    
-    // Iterate over each record in the CSV
-    for (i, result) in rdr.records().enumerate() {
-        let record = result?; // Unwrap the result using `?`
-
-        // Get the number of columns from the first record
-        if i == 0 {
-            num_cols = record.len();
-        }
-
-        // Parse each field as a f64 and collect it into the data vector
-        for field in record.iter() {
-            data.push(field.parse::<f64>()?);
-        }
-        num_rows += 1;
-    }
-
-    let matrix = DMatrix::from_row_slice(num_rows, num_cols, &data);
-    Ok(matrix)
-}
-
-
-
-
-pub fn print_matrix_of_vectors(matrix: &DMatrix<DVector<f64>>, float_precision: usize){
-    let nrows = matrix.nrows();
-    let ncols = matrix.ncols();
-    println!("start {ncols} x {nrows} matrix");
-    println!();
-    for row in 0..nrows {
-        for col in 0..ncols {
-            let vector = &matrix[(row, col)]; // Access the vector in the matrix cell
-            print!("    [");
-            for (i, val) in vector.iter().enumerate() {
-                if i > 0 {
-                    print!(", "); // Print a comma between vector elements
-                }
-                print!("{:.prec$}", val, prec = float_precision); // Format each vector value
-            }
-            print!("]   ");
-        }
-        println!(); // Newline after each matrix row
-        println!();
-    }
-    println!("end {ncols} x {nrows} matrix");
-}
-
-
-
-
-pub enum DistanceType {
-    Euclidean,
-    Minkowski,
-    Correlation,
-    TanimotoSimilarity,
-    Levenshtein,
-    Entropy,
-    Hamming,
-    MatrixNeighbourhood
-}
-
-pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<T>, w:&DVector<T>) -> f64{
-
-    match distance_type {
-        DistanceType::Euclidean => {
-            println!("Handling Euclidean distance");
-            // Add your logic for Euclidean distance here
-            return 0.0
-        },
-        DistanceType::Minkowski => {
-            println!("Handling Minkowski distance");
-            // Add your logic for Minkowski distance here
-            return 0.0
-        },
-        DistanceType::Correlation => {
-            println!("Handling Correlation distance");
-            // Add your logic for Correlation distance here
-            return 0.0
-        },
-        DistanceType::TanimotoSimilarity => {
-            println!("Handling Tanimoto Similarity");
-            // Add your logic for Tanimoto Similarity here
-            return 0.0
-        },
-        DistanceType::Levenshtein => {
-            println!("Handling Levenshtein distance");
-            // Add your logic for Levenshtein distance here
-            return 0.0
-        },
-        DistanceType::Entropy => {
-            println!("Handling Entropy-based distance");
-            // Add your logic for Entropy here
-            return 0.0
-        },
-        DistanceType::Hamming => {
-            println!("Handling Hamming distance");
-            // Add your logic for Hamming distance here
-            return 0.0
-        },
-        DistanceType::MatrixNeighbourhood => {
-            println!("Handling Matrix Neighbourhood distance");
-            // Add your logic for Matrix Neighbourhood
-            return 0.0
-        }
-    }
-}
-
-
-
-
+// Best Matching Unit is the closest vector in the map to the current input vector (or median of batch input vectors)
 pub fn get_best_matching_unit<T: Clone>(y: &DVector<T>, som_map:&DMatrix<DVector<T>>, distance_type:&DistanceType) -> (DVector<T>, Vec<usize>, f64){
     //handles abstract types automatically because of distance_calc func usage
     let mut min_distance: f64 = 0.0;
@@ -220,7 +89,7 @@ pub fn get_best_matching_unit<T: Clone>(y: &DVector<T>, som_map:&DMatrix<DVector
 
 
 
-
+//The gaussian, i.e. the smoothing kernel, used to update the neighbourhood, changes as time goes one
 pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:usize, map_dim:(usize, usize), lambda: f64, learning_rate: f64) -> f64{
     // make learning rate (i.e. how much effect the gaussian has) more user friendly, since its going to be a small value. Shadow the paramter.
     let learning_rate = 1.0 + (learning_rate / 10.0);
@@ -255,103 +124,6 @@ pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:us
     let neigh_level = neigh_level as f64;
     return (-1.0 * learning_rate * inv_sigma * neigh_level.powi(2)).exp()
 }
-
-
-
-
-pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, distance_type:&'a DistanceType) -> &'a DVector<T>{
-    //the generalized definition of a median of a set of objects is "a new object which has the smallest sum of distances to all objects in that set".
-    //an optional requirement is that the median has to already be a member of the existing set. 
-        //it is enforced here for efficiency purposes. 
-        //A generalized mean should be used for the case where it is not necessarily in the batch vector set but in the algebraic set.
-    //gen_med = argmin_m{\sum_{i \in S} distance(i,m)}
-    //handles abstract types automatically because of distance_calc func usage
-    let mut min_distance_index: usize = 0; // the index of that minimal distance vector
-    let mut min_sum_distance: f64 = 0.0; // the distance of that minimal distance vector
-    let mut has_first_loop_occured : bool = false;
-    
-    for i in 0..(batch_vectors.len()) {
-        let mut curr_dist_sum: f64 = 0.0;
-        
-        for j in 0..(batch_vectors.len()) {
-            let v = &batch_vectors[i];
-            let w = &batch_vectors[j];
-            curr_dist_sum = curr_dist_sum + distance_calc(distance_type, v, w);
-        }
-        
-        if has_first_loop_occured {
-            if curr_dist_sum < min_sum_distance {
-                min_sum_distance = curr_dist_sum;
-                min_distance_index = i;
-            }
-        }
-        else {
-            min_sum_distance = curr_dist_sum;
-            // min_distance_index already set to zero
-            has_first_loop_occured = true;
-        }
-    }
-
-    return &batch_vectors[min_distance_index]
-}
-
-
-
-
-pub fn cartesian_product(vectors: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-    // Start with an initial product containing one empty vector
-    let mut result: Vec<Vec<usize>> = vec![vec![]];
-
-    for vec in vectors {
-        // For each vector, create the new combinations
-        result = result.into_iter()
-                       .flat_map(|prev| {
-                           vec.iter().map(move |&x| {
-                               let mut new_combination = prev.clone();
-                               new_combination.push(x);
-                               new_combination
-                           }).collect::<Vec<Vec<usize>>>()
-                       })
-                       .collect();
-    }
-
-    result
-}
-
-
-
-
-pub fn set_difference_for_nested_vectors<T>(v: &mut Vec<Vec<T>>, w: &Vec<Vec<T>>) -> Option<T> 
-where
-    T: PartialEq,
-{
-    // Retain only those sub-vectors in `v` that are NOT present in `w`
-    v.retain(|vec_v| {
-        !w.iter().any(|vec_w| vec_v == vec_w)  // Remove if `vec_v` exists in `w`
-    });
-
-    // Since the mutation is done in-place, return None to indicate no value is returned
-    None
-}
-
-
-
-
-pub fn set_intersection_of_nested_vectors<T>(v: &mut Vec<Vec<T>>, w: &Vec<Vec<T>>) -> Option<()> 
-where
-    T: PartialEq + Eq + Clone + std::hash::Hash,
-{
-    // Convert `w` to a HashSet for faster lookups
-    // the underscore (_) in HashSet<_> is a type placeholder that tells the compiler to infer the type automatically. 
-    let w_set: HashSet<_> = w.iter().collect();
-
-    // Retain only those elements in `v` that are present in `w`
-    v.retain(|vec_v| w_set.contains(vec_v));
-
-    // Since we're modifying `v` in place, return None
-    None
-}
-
 
 
 
@@ -416,13 +188,6 @@ pub fn neighbourhood_update<T>(input_vec:&DVector<T>, bmu:&DVector<T>, bmu_index
     return total_difference
 }
 
-
-
-
-pub fn slice_average(slice: &[f64]) -> f64 {
-    let sum: f64 = slice.iter().sum();
-    sum / slice.len() as f64
-}
 
 pub fn convergence_calculator(diff_buffer: &Vec<f64>, comparison_size:f64) -> f64 { 
     // Clamp value into range (0, 1].
