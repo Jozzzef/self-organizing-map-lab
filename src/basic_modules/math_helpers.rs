@@ -122,10 +122,7 @@ pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<f64>, w:&DVector
         DistanceType::Euclidean => {
             println!("Handling Euclidean distance");
             //handle euclidean subtraction
-            return || {
-                let diff = v - w;
-                return diff.dot(&diff).sqrt(); 
-            }
+            return 0.0
         },
         DistanceType::Minkowski => {
             println!("Handling Minkowski distance");
