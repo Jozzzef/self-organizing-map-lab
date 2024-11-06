@@ -197,16 +197,15 @@ impl Div for Complex { // add is equivalent to NAND
 
 
 // Enumerate all possible algebras that can be used in any given SOM, list not extensive right now 
-pub enum Algebras {
-    StringGroup(String), //the binary operation being concatenation, 
-    BitsField(Bits),
-    BinaryField(Vec<Bits>),
-    IntegerRing(isize), 
-    RealField(f64),
-    ComplexField(Complex), //a+bi = {a, b} basis
-}
+pub struct StringGroup {value: String,}
+pub struct BitsField {value: Bits,}
+pub struct BinaryField {value: Vec<Bits>}
+pub struct IntegerRing {value: isize,}
+pub struct RealField {value: f64,}
+pub struct ComplexField {value: Complex}
 
-pub enum DistanceMetrics {
+
+pub enum DistanceMetric {
     Euclidean,
     Minkowski,
     Chebyshev,
@@ -217,6 +216,45 @@ pub enum DistanceMetrics {
     CrossEntropy,
     KLDivergence
 }
+
+trait GeneralizedDistance {
+    fn distance(metric: DistanceMetric, v: Self, w:  Self) -> Self;
+}
+
+impl GeneralizedDistance for RealField {
+    fn distance(metric: DistanceMetric, v: Self, w:  Self) -> Self {
+       match metric {
+            DistanceMetric::Euclidean => {
+                println!("Processing Euclidean distance");
+            }
+            DistanceMetric::Minkowski => {
+                println!("Processing Minkowski distance");
+            }
+            DistanceMetric::Chebyshev => {
+                println!("Processing Chebyshev distance");
+            }
+            DistanceMetric::InverseCorrelation => {
+                println!("Processing Inverse Correlation");
+            }
+            DistanceMetric::TanimotoDisimilarity => {
+                println!("Processing Tanimoto Dissimilarity");
+            }
+            DistanceMetric::Levenshtein => {
+                println!("Processing Levenshtein distance");
+            }
+            DistanceMetric::Hamming => {
+                println!("Processing Hamming distance");
+            }
+            DistanceMetric::CrossEntropy => {
+                println!("Processing Cross Entropy");
+            }
+            DistanceMetric::KLDivergence => {
+                println!("Processing KL Divergence");
+            }
+        } 
+    }
+}
+
 
 
 // 🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋
