@@ -3,6 +3,8 @@ use nalgebra::DVector;
 use std::collections::HashSet;
 use std::ops::Sub;
 use std::ops::Add;
+use std::ops::Mul;
+use std::ops::Div;
 
 // 🦂🦂🦂🦂🦂🦂🦂🦂🦂🦂🦂
 //Set Theoretic Operations
@@ -64,7 +66,7 @@ where
 // 🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻🗻
 // Algebra Definitions 
 
-// 🫛 Sets (i.e. creation of non primitive types)
+// Create any sets and operations that are defined on the set that is not already heandled by rust by default 
 // BINARY
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Bits {
@@ -79,10 +81,16 @@ impl Bits {
             Bits::One => 1,
         }
     }
-
+    //Assoc func to get from u8 to Bit
+    fn as_bits(u8_num: u8) -> Bits {
+        match u8_num {
+            0 => Bits::Zero,
+            1 => Bits::One,
+            _ => Bits::Zero
+        }
+    }
     // Toggle method to switch between Zero and One
-    // This is the Only Binary Operation of Bits, add and subtract is just an implementation of this
-    fn toggle(&mut self) -> Bits {
+    fn toggle(&mut self) {
         *self = match *self {
             Bits::Zero => Bits::One,
             Bits::One => Bits::Zero,
@@ -90,40 +98,124 @@ impl Bits {
     }
 
 }
-impl Add for Bits {
+impl Add for Bits { // add is equivalent to OR
     type Output = Bits;
-
+  
     fn add(self, other: Bits) -> Bits {
-       if (self != other){
-        return self
-       } else{
-        return Bits.toggle(&self)
-       }
+       if self == Bits::One || other == Bits::One {
+            return Bits::One 
+       } else{ return Bits::Zero }
+    }
+}
+
+impl Sub for Bits { // add is equivalent to NOR
+    type Output = Bits;
+  
+    fn sub(self, other: Bits) -> Bits {
+       if !(self == Bits::One) || !(other == Bits::One) {
+            return Bits::One 
+       } else{ return Bits::Zero }
+    }
+}
+
+impl Mul for Bits { // add is equivalent to AND
+    type Output = Bits;
+  
+    fn mul(self, other: Bits) -> Bits {
+       if self == Bits::One && other == Bits::One {
+            return Bits::One 
+       } else{ return Bits::Zero }
+    }
+}
+
+impl Div for Bits { // add is equivalent to NAND
+    type Output = Bits;
+  
+    fn div(self, other: Bits) -> Bits {
+       if !(self == Bits::One) && !(other == Bits::One) {
+            return Bits::One 
+       } else{ return Bits::Zero }
     }
 }
 
 
-// Primitive Sets and Sets Created Above Are Applied Binary Operations & Additional Methods 
+// COMPLEX 
+#[derive(Debug, PartialEq, Clone, Copy)]
+struct Complex {
+    a: f64,
+    b: f64,
+}
+impl Complex {
+    // new constructor
+    fn new(a: f64, b: f64) -> Self {
+        Self {a, b}
+    }
+    
+    // Method to get the integer value
+    fn as_string(&self) -> String {
+        let a_string = &self.a.round().to_string();
+        let b_string = &self.b.round().to_string();
+        return a_string.to_owned() + b_string + "i";
+    }
+
+}
+impl Add for Complex {
+    type Output = Complex;
+  
+    fn add(self, other: Complex) -> Complex {
+       return Complex {a: self.a + other.a, b: self.b + other.b}
+    }
+}
+
+impl Sub for Complex {
+    type Output = Complex;
+  
+    fn sub(self, other: Complex) -> Complex {
+        return Complex {a: self.a - other.a, b: self.b - other.b}
+    }
+}
+
+impl Mul for Complex { // add is equivalent to AND
+    type Output = Complex;
+  
+    fn mul(self, other: Complex) -> Complex {
+        return Complex {
+            a: (self.a * other.a) - (other.b * other.b),
+            b: (self.a * other.b) - (other.b * other.a)}
+    }
+}
+
+impl Div for Complex { // add is equivalent to NAND
+    type Output = Complex;
+  
+    fn div(self, other: Complex) -> Complex {
+        return Complex {
+            a: ((self.a * other.a) + (self.b * other.b))/(other.a.powf(2.0) + other.b.powf(2.0)),
+            b: ((self.b * other.a) - (self.a * other.b))/(other.a.powf(2.0) + other.b.powf(2.0))}
+    }
+}
+
+
+// Enumerate all possible algebras that can be used in any given SOM, list not extensive right now 
 pub enum Algebras {
     StringGroup(String), //the binary operation being concatenation, 
-    BitsGroup(Bits),
-    BinaryField,
-    ProbabilityField,
-    IntegerRing, 
-    RationalField,
-    RealField,
-    ComplexField,
+    BitsField(Bits),
+    BinaryField(Vec<Bits>),
+    IntegerRing(isize), 
+    RealField(f64),
+    ComplexField(Complex), //a+bi = {a, b} basis
 }
 
 pub enum DistanceMetrics {
-    Euclidean(DVector<f64>),
+    Euclidean,
     Minkowski,
     Chebyshev,
     InverseCorrelation,
     TanimotoDisimilarity,
     Levenshtein,
-    Entropy,
-    Hamming
+    Hamming,
+    CrossEntropy,
+    KLDivergence
 }
 
 
