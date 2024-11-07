@@ -5,6 +5,7 @@ use std::ops::Sub;
 use std::ops::Add;
 use std::ops::Mul;
 use std::ops::Div;
+use std::fmt::Debug;
 
 // 🦂🦂🦂🦂🦂🦂🦂🦂🦂🦂🦂
 //Set Theoretic Operations
@@ -197,14 +198,48 @@ impl Div for Complex { // add is equivalent to NAND
 
 
 // Enumerate all possible algebras that can be used in any given SOM, list not extensive right now 
-pub struct StringGroup {value: String,}
-pub struct BitsField {value: Bits,}
-pub struct BinaryField {value: Vec<Bits>}
-pub struct IntegerRing {value: isize,}
-pub struct RealField {value: f64,}
-pub struct ComplexField {value: Complex}
 
+#[derive(Debug, Clone)]
+pub struct StringGroup {
+    pub value: String,
+}
 
+#[derive(Debug, Clone)]
+pub struct BitsField {
+    pub value: Bits,
+}
+
+#[derive(Debug, Clone)]
+pub struct BinaryField {
+    pub value: [Bits; 16], //max unsigned 16-bit integer = 65535
+}
+
+#[derive(Debug, Clone)]
+pub struct IntegerRing {
+    pub value: isize,
+}
+
+#[derive(Debug, Clone)]
+pub struct RealField {
+    pub value: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ComplexField {
+    pub value: Complex,
+}
+
+#[derive(Debug, Clone)]
+pub enum AlgebraEnum {
+    StringGroup,
+    BitsField,
+    BinaryField,
+    IntegerRing,
+    RealField,
+    ComplexField
+}
+
+#[derive(Debug)]
 pub enum DistanceMetric {
     Euclidean,
     Minkowski,
@@ -217,98 +252,192 @@ pub enum DistanceMetric {
     KLDivergence
 }
 
-trait GeneralizedDistance {
-    fn distance(metric: DistanceMetric, v: Self, w:  Self) -> Self;
-}
 
-impl GeneralizedDistance for RealField {
-    fn distance(metric: DistanceMetric, v: Self, w:  Self) -> Self {
-       match metric {
-            DistanceMetric::Euclidean => {
-                println!("Processing Euclidean distance");
-            }
-            DistanceMetric::Minkowski => {
-                println!("Processing Minkowski distance");
-            }
-            DistanceMetric::Chebyshev => {
-                println!("Processing Chebyshev distance");
-            }
-            DistanceMetric::InverseCorrelation => {
-                println!("Processing Inverse Correlation");
-            }
-            DistanceMetric::TanimotoDisimilarity => {
-                println!("Processing Tanimoto Dissimilarity");
-            }
-            DistanceMetric::Levenshtein => {
-                println!("Processing Levenshtein distance");
-            }
-            DistanceMetric::Hamming => {
-                println!("Processing Hamming distance");
-            }
-            DistanceMetric::CrossEntropy => {
-                println!("Processing Cross Entropy");
-            }
-            DistanceMetric::KLDivergence => {
-                println!("Processing KL Divergence");
-            }
-        } 
+pub trait AlgebraTrait: Debug {
+    fn clone_box(&self) -> Box<dyn AlgebraTrait>;
+}
+impl Clone for Box<dyn AlgebraTrait> {
+    fn clone(&self) -> Box<dyn AlgebraTrait> {
+        self.clone_box()
+    }
+}
+impl AlgebraTrait for StringGroup where Self: Sized {
+    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
+        Box::new(self.clone())
+    }
+}
+impl AlgebraTrait for BitsField where Self: Sized {
+    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
+        Box::new(self.clone())
+    }
+}
+impl AlgebraTrait for BinaryField where Self: Sized {
+    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
+        Box::new(self.clone())
+    }
+}
+impl AlgebraTrait for IntegerRing where Self: Sized {
+    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
+        Box::new(self.clone())
+    }
+}
+impl AlgebraTrait for RealField where Self: Sized {
+    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
+        Box::new(self.clone())
+    }
+}
+impl AlgebraTrait for ComplexField where Self: Sized {
+    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
+        Box::new(self.clone())
     }
 }
 
-
+pub trait AlgebraFunctions {
+    fn distance(metric: &DistanceMetric, 
+        v: &DVector<Box<dyn AlgebraTrait>>, 
+        w: &DVector<Box<dyn AlgebraTrait>>) -> f64;
+}
 
 // 🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋
 // Generalized Calculations of Various Metrics
+impl AlgebraFunctions for StringGroup {
+    fn distance(metric: &DistanceMetric, 
+        v: &DVector<Box<dyn AlgebraTrait>>, 
+        w: &DVector<Box<dyn AlgebraTrait>>) -> f64 {
+            match metric {
+                DistanceMetric::Levenshtein => {
+                    println!("StringGroup + Levenshtein");
+                    return 0.0;
+                }
+                DistanceMetric::Hamming => {
+                    println!("StringGroup + Hamming");
+                    return 0.0;
+                }
+                _ => {
+                    println!("StringGroup with unsupported metric: {:?}", metric);
+                    return 0.0;
+                }
+            }
+        }
+}
 
-pub fn distance_calc<T>(distance_type:&DistanceType, v:&DVector<f64>, w:&DVector<f64>) -> f64{
+impl AlgebraFunctions for BitsField {
+    fn distance(metric: &DistanceMetric, 
+        v: &DVector<Box<dyn AlgebraTrait>>, 
+        w: &DVector<Box<dyn AlgebraTrait>>) -> f64 {
+            match metric {
+                DistanceMetric::TanimotoDisimilarity => {
+                    println!("StringGroup + Levenshtein");
+                    return 0.0;
+                }
+                DistanceMetric::Hamming => {
+                    println!("StringGroup + Hamming");
+                    return 0.0;
+                }
+                _ => {
+                    println!("StringGroup with unsupported metric: {:?}", metric);
+                    return 0.0;
+                }
+            }
+        }
+}
 
-    match distance_type {
-        DistanceType::Euclidean(_) => {
-            println!("Handling Euclidean distance");
-            //handle euclidean subtraction
-            return 0.0
-        },
-        DistanceType::Minkowski => {
-            println!("Handling Minkowski distance");
-            // Add your logic for Minkowski distance here
-            return 0.0
-        },
-        DistanceType::Correlation => {
-            println!("Handling Correlation distance");
-            // Add your logic for Correlation distance here
-            return 0.0
-        },
-        DistanceType::TanimotoSimilarity => {
-            println!("Handling Tanimoto Similarity");
-            // Add your logic for Tanimoto Similarity here
-            return 0.0
-        },
-        DistanceType::Levenshtein => {
-            println!("Handling Levenshtein distance");
-            // Add your logic for Levenshtein distance here
-            return 0.0
-        },
-        DistanceType::Entropy => {
-            println!("Handling Entropy-based distance");
-            // Add your logic for Entropy here
-            return 0.0
-        },
-        DistanceType::Hamming => {
-            println!("Handling Hamming distance");
-            // Add your logic for Hamming distance here
-            return 0.0
-        },
-        DistanceType::MatrixNeighbourhood => {
-            println!("Handling Matrix Neighbourhood distance");
-            // Add your logic for Matrix Neighbourhood
-            return 0.0
+impl AlgebraFunctions for BinaryField {
+    fn distance(metric: &DistanceMetric, 
+        v: &DVector<Box<dyn AlgebraTrait>>, 
+        w: &DVector<Box<dyn AlgebraTrait>>) -> f64 {
+            match metric {
+                DistanceMetric::TanimotoDisimilarity => {
+                    println!("StringGroup + Levenshtein");
+                    return 0.0;
+                }
+                DistanceMetric::Hamming => {
+                    println!("StringGroup + Hamming");
+                    return 0.0;
+                }
+                _ => {
+                    println!("StringGroup with unsupported metric: {:?}", metric);
+                    return 0.0;
+                }
+            }
+        }
+}
+
+impl AlgebraFunctions for IntegerRing {
+    fn distance(metric: &DistanceMetric, 
+        v: &DVector<Box<dyn AlgebraTrait>>, 
+        w: &DVector<Box<dyn AlgebraTrait>>) -> f64 {
+            match metric {
+                DistanceMetric::Euclidean => {
+                    println!("IntegerRing + Euclidean");
+                    return 0.0;
+                }
+                DistanceMetric::Minkowski => {
+                    println!("IntegerRing + Minkowski");
+                    return 0.0;
+                }
+                _ => {
+                    println!("IntegerRing with unsupported metric: {:?}", metric);
+                    return 0.0;
+                }
         }
     }
 }
 
+impl AlgebraFunctions for RealField {
+    fn distance(metric: &DistanceMetric, 
+        v: &DVector<Box<dyn AlgebraTrait>>, 
+        w: &DVector<Box<dyn AlgebraTrait>>) -> f64 {
+            match metric {
+                DistanceMetric::Euclidean => {
+                    println!("RealField + Euclidean");
+                    return 0.0;
+                }
+                DistanceMetric::Minkowski => {
+                    println!("RealField + Minkowski");
+                    return 0.0;
+                }
+                DistanceMetric::Chebyshev => {
+                    println!("RealField + Chebyshev");
+                    return 0.0;
+                }
+                _ => {
+                    println!("RealField with unsupported metric: {:?}", metric);
+                    return 0.0;
+                }      
+        }
+    }
+}
 
+impl AlgebraFunctions for ComplexField {
+    fn distance(metric: &DistanceMetric, 
+        v: &DVector<Box<dyn AlgebraTrait>>, 
+        w: &DVector<Box<dyn AlgebraTrait>>) -> f64 {
+            match metric {
+                DistanceMetric::Euclidean => {
+                    println!("RealField + Euclidean");
+                    return 0.0;
+                }
+                DistanceMetric::Minkowski => {
+                    println!("RealField + Minkowski");
+                    return 0.0;
+                }
+                DistanceMetric::Chebyshev => {
+                    println!("RealField + Chebyshev");
+                    return 0.0;
+                }
+                _ => {
+                    println!("RealField with unsupported metric: {:?}", metric);
+                    return 0.0;
+                }      
+        }
+    }
+}
 
-pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, distance_type:&'a DistanceType) -> &'a DVector<T>{
+pub fn generalized_median<'a,T>(algebra_type: AlgebraEnum,  
+                                distance_metric: &DistanceMetric,
+                                batch_vectors: &mut Vec<DVector<Box<dyn AlgebraTrait>>>
+                            ) -> DVector<Box<dyn AlgebraTrait>>{
     //the generalized definition of a median of a set of objects is "a new object which has the smallest sum of distances to all objects in that set".
     //an optional requirement is that the median has to already be a member of the existing set. 
         //it is enforced here for efficiency purposes. 
@@ -325,7 +454,38 @@ pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, distance_typ
         for j in 0..(batch_vectors.len()) {
             let v = &batch_vectors[i];
             let w = &batch_vectors[j];
-            curr_dist_sum = curr_dist_sum + distance_calc(distance_type, v, w);
+            match algebra_type {
+                AlgebraEnum::StringGroup => {
+                    println!("Handling {:?}", algebra_type);
+                    // Add specific logic for ConcreteAlgebraA
+                    curr_dist_sum = curr_dist_sum + StringGroup::distance(distance_metric, v, w);
+                },
+                AlgebraEnum::BitsField => {
+                    println!("Handling {:?}", algebra_type);
+                    // Add specific logic for ConcreteAlgebraA
+                    curr_dist_sum = curr_dist_sum + BitsField::distance(distance_metric, v, w);
+                }
+                AlgebraEnum::BinaryField => {
+                    println!("Handling {:?}", algebra_type);
+                    // Add specific logic for ConcreteAlgebraA
+                    curr_dist_sum = curr_dist_sum + BinaryField::distance(distance_metric, v, w);
+                }, 
+                AlgebraEnum::IntegerRing => {
+                    println!("Handling {:?}", algebra_type);
+                    // Add specific logic for ConcreteAlgebraA
+                    curr_dist_sum = curr_dist_sum + IntegerRing::distance(distance_metric, v, w);
+                },
+                AlgebraEnum::RealField => {
+                    println!("Handling {:?}", algebra_type);
+                    // Add specific logic for ConcreteAlgebraA
+                    curr_dist_sum = curr_dist_sum + RealField::distance(distance_metric, v, w);
+                },
+                AlgebraEnum::ComplexField => {
+                    println!("Handling {:?}", algebra_type);
+                    // Add specific logic for ConcreteAlgebraA
+                    curr_dist_sum = curr_dist_sum + ComplexField::distance(distance_metric, v, w);
+                },
+            }
         }
         
         if has_first_loop_occured {
@@ -340,8 +500,7 @@ pub fn generalized_median<'a,T>(batch_vectors: &'a Vec<DVector<T>>, distance_typ
             has_first_loop_occured = true;
         }
     }
-
-    return &batch_vectors[min_distance_index]
+    return batch_vectors[min_distance_index].clone();
 }
 
 
