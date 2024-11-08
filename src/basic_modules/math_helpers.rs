@@ -6,6 +6,7 @@ use std::ops::Add;
 use std::ops::Mul;
 use std::ops::Div;
 use std::fmt::Debug;
+use rand::random;
 
 // 🦂🦂🦂🦂🦂🦂🦂🦂🦂🦂🦂
 //Set Theoretic Operations
@@ -69,7 +70,7 @@ where
 
 // Create any sets and operations that are defined on the set that is not already heandled by rust by default 
 // BINARY
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum Bits {
     Zero,
     One,
@@ -139,9 +140,14 @@ impl Div for Bits { // add is equivalent to NAND
     }
 }
 
+impl PartialEq for Bits {
+    fn eq(&self, other: &Self) -> bool {
+       self.as_u8() == other.as_u8() 
+    }
+}
 
 // COMPLEX 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct Complex {
     a: f64,
     b: f64,
@@ -196,47 +202,22 @@ impl Div for Complex { // add is equivalent to NAND
     }
 }
 
+impl PartialEq for Complex {
+    fn eq(&self, other: &Self) -> bool {
+        self.a == other.a && self.b == other.b
+    }
+}
+
 
 // Enumerate all possible algebras that can be used in any given SOM, list not extensive right now 
-
-#[derive(Debug, Clone)]
-pub struct StringGroup {
-    pub value: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct BitsField {
-    pub value: Bits,
-}
-
-#[derive(Debug, Clone)]
-pub struct BinaryField {
-    pub value: [Bits; 16], //max unsigned 16-bit integer = 65535
-}
-
-#[derive(Debug, Clone)]
-pub struct IntegerRing {
-    pub value: isize,
-}
-
-#[derive(Debug, Clone)]
-pub struct RealField {
-    pub value: f64,
-}
-
-#[derive(Debug, Clone)]
-pub struct ComplexField {
-    pub value: Complex,
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AlgebraEnum {
-    StringGroup,
-    BitsField,
-    BinaryField,
-    IntegerRing,
-    RealField,
-    ComplexField
+    StringGroup(String),
+    BitsField(Bits),
+    BinaryField([Bits; 16]),
+    IntegerRing(isize),
+    RealField(f64),
+    ComplexField(Complex)
 }
 
 #[derive(Debug)]
@@ -252,7 +233,6 @@ pub enum DistanceMetric {
     KLDivergence
 }
 
-
 pub trait AlgebraTrait: Debug {
     fn clone_box(&self) -> Box<dyn AlgebraTrait>;
 }
@@ -261,45 +241,68 @@ impl Clone for Box<dyn AlgebraTrait> {
         self.clone_box()
     }
 }
-impl AlgebraTrait for StringGroup where Self: Sized {
+impl AlgebraTrait for AlgebraEnum {
     fn clone_box(&self) -> Box<dyn AlgebraTrait> {
-        Box::new(self.clone())
+        match self {
+            AlgebraEnum::StringGroup(s) => Box::new(AlgebraEnum::StringGroup(s.clone())),
+            AlgebraEnum::BitsField(bits) => Box::new(AlgebraEnum::BitsField(bits.clone())),
+            AlgebraEnum::BinaryField(binary_array) => { Box::new(AlgebraEnum::BinaryField(*binary_array)) }
+            AlgebraEnum::IntegerRing(value) => Box::new(AlgebraEnum::IntegerRing(*value)),
+            AlgebraEnum::RealField(value) => Box::new(AlgebraEnum::RealField(*value)),
+            AlgebraEnum::ComplexField(complex) => Box::new(AlgebraEnum::ComplexField(complex.clone())),
+        }
     }
-}
-impl AlgebraTrait for BitsField where Self: Sized {
-    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
-        Box::new(self.clone())
-    }
-}
-impl AlgebraTrait for BinaryField where Self: Sized {
-    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
-        Box::new(self.clone())
-    }
-}
-impl AlgebraTrait for IntegerRing where Self: Sized {
-    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
-        Box::new(self.clone())
-    }
-}
-impl AlgebraTrait for RealField where Self: Sized {
-    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
-        Box::new(self.clone())
-    }
-}
-impl AlgebraTrait for ComplexField where Self: Sized {
-    fn clone_box(&self) -> Box<dyn AlgebraTrait> {
-        Box::new(self.clone())
-    }
-}
-
-pub trait AlgebraFunctions {
-    fn distance(metric: &DistanceMetric, 
-        v: &DVector<Box<dyn AlgebraTrait>>, 
-        w: &DVector<Box<dyn AlgebraTrait>>) -> f64;
 }
 
 // 🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋🌋
 // Generalized Calculations of Various Metrics
+pub fn distance(metric: &DistanceMetric,
+    algebra: AlgebraEnum, 
+    v: &DVector<Box<dyn AlgebraTrait>>, 
+    w: &DVector<Box<dyn AlgebraTrait>>) 
+    -> f64 {
+        match algebra {
+            AlgebraEnum::StringGroup(s) => {
+                println!("StringGroup variant with value: {}", s);
+                // Add logic for handling `StringGroup`
+                match metric {
+                    DistanceMetric::Levenshtein => {
+                        println!("StringGroup + Levenshtein");
+                        return 0.0;
+                    }
+                    DistanceMetric::Hamming => {
+                        println!("StringGroup + Hamming");
+                        return 0.0;
+                    }
+                    _ => {
+                        println!("StringGroup with unsupported metric: {:?}", metric);
+                        return 0.0;
+                    }
+                }
+            }
+            AlgebraEnum::BitsField(bits) => {
+                println!("BitsField variant with value: {:?}", bits);
+                // Add logic for handling `BitsField`
+            }
+            AlgebraEnum::BinaryField(binary_array) => {
+                println!("BinaryField variant with array: {:?}", binary_array);
+                // Add logic for handling `BinaryField`
+            }
+            AlgebraEnum::IntegerRing(integer) => {
+                println!("IntegerRing variant with value: {}", integer);
+                // Add logic for handling `IntegerRing`
+            }
+            AlgebraEnum::RealField(real) => {
+                println!("RealField variant with value: {}", real);
+                // Add logic for handling `RealField`
+            }
+            AlgebraEnum::ComplexField(complex) => {
+                println!("ComplexField variant with value: {:?}", complex);
+                // Add logic for handling `ComplexField`
+            }
+        }
+    }
+
 impl AlgebraFunctions for StringGroup {
     fn distance(metric: &DistanceMetric, 
         v: &DVector<Box<dyn AlgebraTrait>>, 
@@ -501,6 +504,43 @@ pub fn generalized_median<'a,T>(algebra_type: AlgebraEnum,
         }
     }
     return batch_vectors[min_distance_index].clone();
+}
+
+pub fn generalized_random_value(algebra_type: AlgebraEnum) -> Box<dyn AlgebraTrait> {
+    match algebra_type {
+        AlgebraEnum::StringGroup => {
+            println!("Handling {:?}", algebra_type);
+            // Add specific logic for ConcreteAlgebraA
+            let return_value: Box<dyn AlgebraTrait> = Box::new(StringGroup {value: String::from("String Value")});
+            return return_value
+        },
+        AlgebraEnum::BitsField => {
+            println!("Handling {:?}", algebra_type);
+            let return_value: Box<dyn AlgebraTrait> = Box::new(BitsField {value: Bits::Zero});
+            return return_value
+        }
+        AlgebraEnum::BinaryField => {
+            println!("Handling {:?}", algebra_type);
+            let return_value: Box<dyn AlgebraTrait> = Box::new(BinaryField {value: [Bits::Zero; 16]});
+            return return_value
+        }, 
+        AlgebraEnum::IntegerRing => {
+            println!("Handling {:?}", algebra_type);
+            let return_value: Box<dyn AlgebraTrait> = Box::new(IntegerRing {value: 0});
+            return return_value
+        },
+        AlgebraEnum::RealField => {
+            println!("Handling {:?}", algebra_type);
+            let real_random = random::<f64>();
+            let return_value: Box<dyn AlgebraTrait> = Box::new(RealField {value: real_random});
+            return return_value
+        },
+        AlgebraEnum::ComplexField => {
+            println!("Handling {:?}", algebra_type);
+            let return_value: Box<dyn AlgebraTrait> = Box::new(ComplexField {value: Complex{a: 0.0, b: 0.0}});
+            return return_value
+        },
+    }
 }
 
 

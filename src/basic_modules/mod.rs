@@ -28,7 +28,7 @@ pub fn simple_som(
         map_size_2d.1, 
         |_i,_j| DVector::from_fn(
             input_matrix.ncols(),
-            |_i_2, _j_2| random::<f64>()));
+            |_i_2, _j_2| generalized_random_value(AlgebraEnum::RealField)));
 
     let batch_size = batch_size.unwrap_or(1); //default to 1
 
