@@ -1,12 +1,16 @@
 //Dependencies
-use rand::random;
 use nalgebra::{DMatrix, DVector};
-use std::{cmp::max as tuple_max, fmt::Binary};
+use std::cmp::max as tuple_max;
 
-mod math_helpers;
-pub use math_helpers::*;
-mod text_helpers;
-pub use text_helpers::*;
+pub mod shared;
+pub mod math_modules;
+pub use math_modules::*;
+pub mod text_modules;
+pub use text_modules::*;
+pub mod visual_modules;
+pub use visual_modules::*;
+
+use crate::basic_modules::shared::DistanceMetric;
 
 // SOM functions
 
@@ -28,7 +32,7 @@ pub fn simple_som(
         map_size_2d.1, 
         |_i,_j| DVector::from_fn(
             input_matrix.ncols(),
-            |_i_2, _j_2| generalized_random_value(AlgebraEnum::RealField)));
+            |_i_2, _j_2| RealField::random_value()));
 
     let batch_size = batch_size.unwrap_or(1); //default to 1
 
@@ -46,7 +50,7 @@ pub fn simple_som(
         for j in 0..input_matrix.ncols() {
             //calculate Best Matching Unit, i.e. matching vector = the vector with the smallest distance to the input vector
             let column_vector = DVector::from_column_slice(&input_matrix.column(j).as_slice());
-            let (bmu_vec, bmu_index, bmu_dist) = get_best_matching_unit(&column_vector, &map_matrix, &DistanceMetric::Euclidean, &AlgebraEnum::RealField);
+            let (bmu_vec, bmu_index, bmu_dist) = get_best_matching_unit(&column_vector, &map_matrix, DistanceMetric::Euclidean);
 
             //update neighbourhood, updates map in place then returns the total distances from the udpate
             let diff = neighbourhood_update(&column_vector, &bmu_vec, &bmu_index, &mut map_matrix, &learning_rate_lambda);
@@ -64,11 +68,10 @@ pub fn simple_som(
 
 
 // Best Matching Unit is the closest vector in the map to the current input vector (or median of batch input vectors)
-pub fn get_best_matching_unit(y: &DVector<Box<dyn AlgebraTrait>>, 
-    som_map:&DMatrix<DVector<Box<dyn AlgebraTrait>>>, 
-    distance_metric:&DistanceMetric,
-    algebra_type: &AlgebraEnum) 
-    -> (DVector<Box<dyn AlgebraTrait>>, Vec<usize>, f64){
+pub fn get_best_matching_unit(y: &DVector<f64>, 
+    som_map:&DMatrix<DVector<f64>>, 
+    metric:DistanceMetric) 
+    -> (DVector<f64>, Vec<usize>, f64){
     //handles abstract types automatically because of distance_calc func usage
     let mut min_distance: f64 = 0.0;
     let mut min_distance_index: (usize,usize) = (0,0);
@@ -77,39 +80,7 @@ pub fn get_best_matching_unit(y: &DVector<Box<dyn AlgebraTrait>>,
     for i in 0..som_map.nrows() {
         for j in 0..som_map.ncols() {
             // Access each element by mutable reference
-            let curr_dist: f64; 
-            match algebra_type {
-                AlgebraEnum::StringGroup => {
-                    println!("Handling {:?}", algebra_type);
-                    // Add specific logic for ConcreteAlgebraA
-                    curr_dist = StringGroup::distance(distance_metric, y, &som_map[(i, j)]);
-                },
-                AlgebraEnum::BitsField => {
-                    println!("Handling {:?}", algebra_type);
-                    // Add specific logic for ConcreteAlgebraA
-                    curr_dist = StringGroup::distance(distance_metric, y, &som_map[(i, j)]);
-                }
-                AlgebraEnum::BinaryField => {
-                    println!("Handling {:?}", algebra_type);
-                    // Add specific logic for ConcreteAlgebraA
-                    curr_dist = BinaryField::distance(distance_metric, y, &som_map[(i, j)]);
-                }, 
-                AlgebraEnum::IntegerRing => {
-                    println!("Handling {:?}", algebra_type);
-                    // Add specific logic for ConcreteAlgebraA
-                    curr_dist = IntegerRing::distance(distance_metric, y, &som_map[(i, j)]);
-                },
-                AlgebraEnum::RealField => {
-                    println!("Handling {:?}", algebra_type);
-                    // Add specific logic for ConcreteAlgebraA
-                    curr_dist = RealField::distance(distance_metric, y, &som_map[(i, j)]);
-                },
-                AlgebraEnum::ComplexField => {
-                    println!("Handling {:?}", algebra_type);
-                    // Add specific logic for ConcreteAlgebraA
-                    curr_dist = ComplexField::distance(distance_metric, y, &som_map[(i, j)]);
-                },
-            }
+            let curr_dist = RealField::vector_distance(metric, y, &som_map[(i, j)]);
             if !is_first_loop && curr_dist < min_distance{
                 min_distance = curr_dist;
                 min_distance_index = (i,j);
