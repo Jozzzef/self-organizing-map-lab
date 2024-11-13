@@ -20,10 +20,14 @@ pub fn simple_som(
     input_data_file_path:String, 
     map_size_2d:(usize,usize), 
     batch_size: Option<usize>, 
-    convergence_threshold: f64,
-    lambda_reduction_rate: f64
+    lambda_radius_reduction_rate: Option<f64>, // neighbourhood size effect reduction rate after each loop
+    learning_rate: Option<f64> // the baseline of how much you want the nodes/vectors to change on each map update, reduces after lambda changes converges
 
 ) -> DMatrix<DVector<f64>> {
+    
+    let batch_size = batch_size.unwrap_or(1); //default to 1
+    let lambda = lambda_radius_reduction_rate.unwrap_or(1.01).max(1.00000001);
+    let mut learning_rate = learning_rate.unwrap_or(1.0);
     
     let input_matrix: DMatrix<f64> = read_csv_to_matrix(input_data_file_path).unwrap();
 
@@ -34,7 +38,6 @@ pub fn simple_som(
             input_matrix.ncols(),
             |_i_2, _j_2| RealField::random_value()));
 
-    let batch_size = batch_size.unwrap_or(1); //default to 1
 
     let input_matrix = input_matrix.transpose();
     print!("{input_matrix}");
@@ -43,24 +46,21 @@ pub fn simple_som(
     let mut diff_buff: Vec<f64> = vec![];
     //convergence metric starts closer to 1 and reduces and reduces non monotonically
     let mut convergence_metric: f64;
-    //the learning rate only decreases when the convergence metric threshold is reached
-    let mut learning_rate_lambda: f64 = 1.0;
     //training loop starts here
-    while learning_rate_lambda != 0.0 {
+    let mut num_of_loops_done: usize = 0; //this is the number of inputs used, but generalized since assuming we can go through data multiple times before convergence 
+    while learning_rate >= 0.0000000000001 {
         for j in 0..input_matrix.ncols() {
             //calculate Best Matching Unit, i.e. matching vector = the vector with the smallest distance to the input vector
             let column_vector = DVector::from_column_slice(&input_matrix.column(j).as_slice());
             let (bmu_vec, bmu_index, bmu_dist) = get_best_matching_unit(&column_vector, &map_matrix, DistanceMetric::Euclidean);
 
             //update neighbourhood, updates map in place then returns the total distances from the udpate
-            let diff = neighbourhood_update(&column_vector, &bmu_vec, &bmu_index, &mut map_matrix, &learning_rate_lambda);
+            let diff = neighbourhood_update_real_field(&column_vector, &bmu_vec, &bmu_index, &mut map_matrix, &lambda, &learning_rate, &num_of_loops_done);
             diff_buff.push(diff);
             convergence_metric = convergence_calculator(&diff_buff, 0.2);
-            if convergence_metric <= convergence_threshold {
-                //start learning rate reduction since natural convergence reached threshold
-                let reduced_lambda = lambda_reduction_rate / 10.0;
-                learning_rate_lambda = reduced_lambda.clamp(0.0, 1.0)
-            }
+            //learning rate decreases alongside convergence metric, this way I can optimize its rate of change later
+            learning_rate -= convergence_metric / 100.0; // 100 is arbitrary untill optimized
+            num_of_loops_done += 1;
         }
     }
     return map_matrix
@@ -97,9 +97,14 @@ pub fn get_best_matching_unit(y: &DVector<f64>,
 
 
 //The gaussian, i.e. the smoothing kernel, used to update the neighbourhood, changes as time goes one
-pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:usize, map_dim:(usize, usize), lambda: f64, learning_rate: f64) -> f64{
+pub fn changing_standardized_gaussian(
+    neigh_level: usize, 
+    num_loops:&usize, 
+    map_dim:(usize, usize), 
+    lambda: &f64, 
+    learning_rate: &f64) -> f64{
     // make learning rate (i.e. how much effect the gaussian has) more user friendly, since its going to be a small value. Shadow the paramter.
-    let learning_rate = 1.0 + (learning_rate / 10.0);
+    //let learning_rate = 1.0 + (learning_rate / 10.0);
     
     // start off condition: integral of gaussian (from x -> infin), where x=max{map's (ncols, nrows)} i.e. the max neigh level, is equal to .1. (1000 is used instead of infin)
     // let sigma=y, let learning_rate=a=1, and g(x,y)=e^{-yx^2}, solve definite integral euqation: G(1000)-G(sigma)=-.1 -> sigma = G^{-1}(G[1000] - .1) to receive:
@@ -111,15 +116,15 @@ pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:us
 
     // inv_sigma changes linearly, larger to small
     // lambda = the constant of change, this iteratively gets multiplied to inv_sigma to increase inv_sigma's value over time
-    
-    inv_sigma *= lambda * (current_input_index as f64);
+    let num_loops_f = *num_loops as f64;
+    inv_sigma *= lambda * num_loops_f;
 
     // check if minimal gaussian width condition is met
     // end off condition: integral of gaussian (from x -> infin), where x=1, is ge or equal to .1. i.e. G(1000)-G(neigh_level) <= .1 ==> use the minimal value
     // G = ((-1/100 (e^{-100y}))
     let mut greater_bound_inv_sigma = 2.3025850929940455; // pre calculated, since effect prop = 1 will likely be the most popular value, can add others later
     let one: f64 = 1.0;
-    if learning_rate != 1.0 {
+    if *learning_rate != 1.0 {
         greater_bound_inv_sigma = -f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * learning_rate / one.powi(2) - 0.1) / learning_rate) / one.powi(2);
     }
     
@@ -134,7 +139,14 @@ pub fn changing_standardized_gaussian(neigh_level: usize, current_input_index:us
 
 
 
-pub fn neighbourhood_update<T>(input_vec:&DVector<T>, bmu:&DVector<T>, bmu_index:&Vec<usize>, map:&mut DMatrix<DVector<T>>, lambda:&f64) -> f64 {
+pub fn neighbourhood_update_real_field(
+    input_vec:&DVector<f64>, 
+    bmu:&DVector<f64>, 
+    bmu_index:&Vec<usize>, 
+    map:&mut DMatrix<DVector<f64>>, 
+    lambda:&f64,
+    learning_rate: &f64,
+    num_loops:&usize) -> f64 {
     
     //**should probably memoize the neighbourhood set creation for all possible bmus
 
@@ -186,9 +198,14 @@ pub fn neighbourhood_update<T>(input_vec:&DVector<T>, bmu:&DVector<T>, bmu_index
     //update all values based on the following generalized formula:
         // current_element = current_element + changing_standardized_gaussian(x=neighbourhood_level)*(x_input - current_element)
         // changing_standardized_gaussian:= gaussian starts wide during training, ends thin near end of training
-    for j in 0..set_of_neighbourhoods.len() {
-        //distance_calc(DistanceType::MatrixNeighbourhood, bmu, bmu);
-
+    for j in 0..set_of_neighbourhoods.len()-1 {
+        for p in 0..set_of_neighbourhoods[j].len()-1 {
+            let index_i = set_of_neighbourhoods[j][p][0];
+            let index_j = set_of_neighbourhoods[j][p][1];
+            let mut w : DVector<f64> = map[(index_i, index_j)].clone();
+            w = w.add_scalar(changing_standardized_gaussian(j, num_loops, (map.ncols(), map.nrows()), lambda, learning_rate) * RealField::vector_distance(DistanceMetric::Euclidean, input_vec, &w));
+            map[(index_i, index_j)] = w;
+        }
     }
 
     let total_difference = 0.0;

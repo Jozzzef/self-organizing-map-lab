@@ -9,7 +9,7 @@ use rand::random;
 use crate::basic_modules::shared::DistanceMetric;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RealField {value: f64}
+pub struct RealField (pub f64);
 
 impl RealField {
 
@@ -76,11 +76,20 @@ impl RealField {
 
 }
 
+// Implement Deref to allow transparent access to f64 methods
+impl std::ops::Deref for RealField {
+    type Target = f64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl Add for RealField {
     type Output = RealField;
   
     fn add(self, other: RealField) -> RealField {
-       return Self { value : self.value + other.value }
+       return Self(self.0 + other.0)
     }
 }
 
@@ -88,7 +97,7 @@ impl Sub for RealField {
     type Output = RealField;
   
     fn sub(self, other: RealField) -> RealField {
-        return Self { value: self.value - other.value }
+        return Self(self.0 - other.0)
     }
 }
 
@@ -96,7 +105,7 @@ impl Mul for RealField { // add is equivalent to AND
     type Output = RealField;
   
     fn mul(self, other: RealField) -> RealField {
-        return Self { value: self.value * other.value }
+        return Self(self.0  * other.0);
     }
 }
 
@@ -104,6 +113,7 @@ impl Div for RealField { // add is equivalent to NAND
     type Output = RealField;
   
     fn div(self, other: RealField) -> RealField {
-        return Self { value: self.value / other.value }
+        return Self(self.0  /  other.0);
+
     }
 }
