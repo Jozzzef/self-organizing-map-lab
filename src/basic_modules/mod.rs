@@ -68,7 +68,8 @@ pub fn simple_som(
 
 
 // Best Matching Unit is the closest vector in the map to the current input vector (or median of batch input vectors)
-pub fn get_best_matching_unit(y: &DVector<f64>, 
+pub fn get_best_matching_unit(
+    y: &DVector<f64>, 
     som_map:&DMatrix<DVector<f64>>, 
     metric:DistanceMetric) 
     -> (DVector<f64>, Vec<usize>, f64){
