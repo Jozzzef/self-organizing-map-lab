@@ -51,6 +51,7 @@ pub fn print_matrix_of_vectors(matrix: &DMatrix<DVector<f64>>, float_precision: 
     println!("start {ncols} x {nrows} matrix");
     println!();
     for row in 0..nrows {
+        println!("m={row}");
         for col in 0..ncols {
             let vector = &matrix[(row, col)]; // Access the vector in the matrix cell
             print!("    [");

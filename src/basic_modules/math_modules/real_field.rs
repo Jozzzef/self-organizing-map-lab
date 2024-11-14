@@ -16,7 +16,7 @@ impl RealField {
     pub fn vector_distance(metric: DistanceMetric, v: &DVector<f64>, w: &DVector<f64>) -> f64 {
             match metric {
                 DistanceMetric::Euclidean => {
-                    println!("RealField + Euclidean");
+                    // println!("RealField + Euclidean");
                     assert_eq!(v.len(), w.len(), "Vectors must have the same length");
                     return (v - w).norm(); // Compute the difference and calculate the L2 norm
                 }

@@ -13,7 +13,7 @@ use clearscreen;
 fn main() {
     clearscreen::clear().expect("failed to clear screen"); //clear terminal
     //println!("Hello, world!");
-    let som_output: DMatrix<DVector<f64>> = simple_som(String::from("example_inputs/simple_input.csv"), (3,3), None, None, None);
+    let som_output: DMatrix<DVector<f64>> = simple_som(String::from("example_inputs/simple_input.csv"), (9,9), None, None, None);
     print_matrix_of_vectors(&som_output, 3);
     //println!("{som_output}");
     println!("exit");

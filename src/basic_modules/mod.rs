@@ -1,5 +1,6 @@
 //Dependencies
 use nalgebra::{DMatrix, DVector};
+use rand::seq::index;
 use std::cmp::max as tuple_max;
 
 pub mod shared;
@@ -40,7 +41,12 @@ pub fn simple_som(
 
 
     let input_matrix = input_matrix.transpose();
+    print!("input matrix");
     print!("{input_matrix}");
+
+    print!("map matrix");
+    print_matrix_of_vectors(&map_matrix, 2);
+
 
     //create buffer of total distances at each neighbourhood update, for convergence metric
     let mut diff_buff: Vec<f64> = vec![];
@@ -56,6 +62,7 @@ pub fn simple_som(
 
             //update neighbourhood, updates map in place then returns the total distances from the udpate
             let diff = neighbourhood_update_real_field(&column_vector, &bmu_vec, &bmu_index, &mut map_matrix, &lambda, &learning_rate, &num_of_loops_done);
+            print_matrix_of_vectors(&map_matrix, 2);
             diff_buff.push(diff);
             convergence_metric = convergence_calculator(&diff_buff, 0.2);
             //learning rate decreases alongside convergence metric, this way I can optimize its rate of change later
@@ -73,7 +80,7 @@ pub fn get_best_matching_unit(
     som_map:&DMatrix<DVector<f64>>, 
     metric:DistanceMetric) 
     -> (DVector<f64>, Vec<usize>, f64){
-    //handles abstract types automatically because of distance_calc func usage
+
     let mut min_distance: f64 = 0.0;
     let mut min_distance_index: (usize,usize) = (0,0);
     let mut is_first_loop: bool = true;
@@ -85,7 +92,7 @@ pub fn get_best_matching_unit(
             if !is_first_loop && curr_dist < min_distance{
                 min_distance = curr_dist;
                 min_distance_index = (i,j);
-            } else {
+            } else if is_first_loop {
                 min_distance = curr_dist;
                 is_first_loop = false;
             }
@@ -157,6 +164,7 @@ pub fn neighbourhood_update_real_field(
     let mut set_of_neighbourhoods: Vec<Vec<Vec<usize>>> = Vec::new();
     let mut n: usize = 0;
     let range_neighbourhood_indices = cartesian_product(vec![(0..(map.ncols())).collect::<Vec<usize>>(), (0..(map.nrows())).collect::<Vec<usize>>()]);
+    let total_difference = 0.0;
 
     loop {
         if n == 0 {
@@ -167,8 +175,13 @@ pub fn neighbourhood_update_real_field(
             let mut possible_neigh_indices: Vec<Vec<usize>>  = Vec::new();
             for index_val in bmu_index {
                 //n denotes the level of neighbourhood, the number of "steps" away it is from the bmu
-                let start = index_val - n;
-                let end = index_val + n + 1;
+                let start: usize;
+                if n > *index_val { 
+                    start = 0; 
+                } else {
+                    start = index_val - n;
+                }
+                let end = index_val + n + 1; //+1 for the vec from range
                 let vec_from_range: Vec<usize> = (start..end).collect();
                 possible_neigh_indices.push(vec_from_range)
             }
@@ -199,17 +212,17 @@ pub fn neighbourhood_update_real_field(
     //update all values based on the following generalized formula:
         // current_element = current_element + changing_standardized_gaussian(x=neighbourhood_level)*(x_input - current_element)
         // changing_standardized_gaussian:= gaussian starts wide during training, ends thin near end of training
-    for j in 0..set_of_neighbourhoods.len()-1 {
-        for p in 0..set_of_neighbourhoods[j].len()-1 {
+    for j in 0.. set_of_neighbourhoods.len()-1{
+        for p in 0..set_of_neighbourhoods[j].len(){
             let index_i = set_of_neighbourhoods[j][p][0];
             let index_j = set_of_neighbourhoods[j][p][1];
             let mut w : DVector<f64> = map[(index_i, index_j)].clone();
-            w = w.add_scalar(changing_standardized_gaussian(j, num_loops, (map.ncols(), map.nrows()), lambda, learning_rate) * RealField::vector_distance(DistanceMetric::Euclidean, input_vec, &w));
+            let vec_diff = input_vec - w.clone();
+            w = w.clone() + (changing_standardized_gaussian(j, num_loops, (map.ncols(), map.nrows()), lambda, learning_rate) * vec_diff);
             map[(index_i, index_j)] = w;
         }
     }
 
-    let total_difference = 0.0;
     return total_difference
 }
 

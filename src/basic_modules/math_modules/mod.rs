@@ -29,13 +29,13 @@ pub fn cartesian_product(vectors: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
                            vec.iter().map(move |&x| {
                                let mut new_combination = prev.clone();
                                new_combination.push(x);
-                               new_combination
+                               return new_combination
                            }).collect::<Vec<Vec<usize>>>()
                        })
                        .collect();
     }
 
-    result
+    return result
 }
 
 
