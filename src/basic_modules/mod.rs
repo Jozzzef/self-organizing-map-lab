@@ -166,7 +166,7 @@ pub fn neighbourhood_update_real_field(
     let mut set_of_neighbourhoods: Vec<Vec<Vec<usize>>> = Vec::new();
     let mut n: usize = 0;
     let range_neighbourhood_indices = cartesian_product(vec![(0..(map.ncols())).collect::<Vec<usize>>(), (0..(map.nrows())).collect::<Vec<usize>>()]);
-    let total_difference = 0.0;
+    let mut total_difference = 0.0;
 
     loop {
         if n == 0 {
@@ -220,6 +220,9 @@ pub fn neighbourhood_update_real_field(
             let index_j = set_of_neighbourhoods[j][p][1];
             let mut w : DVector<f64> = map[(index_i, index_j)].clone();
             let vec_diff = input_vec - w.clone();
+            //add rolling differences so we can see convergence
+            total_difference += RealField::vector_distance(DistanceMetric::Euclidean, input_vec, &w);
+            // edit the current vector in the neighbourhood and assign it
             w = w.clone() + (changing_standardized_gaussian(j, num_loops, (map.ncols(), map.nrows()), lambda, learning_rate) * vec_diff);
             map[(index_i, index_j)] = w;
         }
@@ -234,6 +237,7 @@ pub fn convergence_calculator(diff_buffer: &Vec<f64>, comparison_size:f64) -> f6
     let comparison_size_clamped = comparison_size.clamp(0.001, 1.0);
     let upper_border = (diff_buffer.len() as f64 * comparison_size_clamped) as usize;
     let lower_border = diff_buffer.len() - upper_border;
+    let debug_diff_buffer = diff_buffer[0..upper_border];
     let upper_avg = slice_average(&diff_buffer[0..upper_border]);
     let lower_avg = slice_average(&diff_buffer[lower_border..(diff_buffer.len()-1)]);
     let convergence_metric = lower_avg / upper_avg;
