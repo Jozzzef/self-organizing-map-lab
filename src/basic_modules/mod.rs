@@ -113,25 +113,27 @@ pub fn changing_standardized_gaussian(
     learning_rate: &f64) -> f64{
     // make learning rate (i.e. how much effect the gaussian has) more user friendly, since its going to be a small value. Shadow the paramter.
     //let learning_rate = 1.0 + (learning_rate / 10.0);
-    
+
+    // constant for learning rate check condition
+    let one: f64 = 1.0;
+    let mut greater_bound_inv_sigma = 2.3025850929940455; // pre calculated, since effect prop = 1 will likely be the most popular value, can add others later
+
     // start off condition: integral of gaussian (from x -> infin), where x=max{map's (ncols, nrows)} i.e. the max neigh level, is equal to .1. (1000 is used instead of infin)
     // let sigma=y, let learning_rate=a=1, and g(x,y)=e^{-yx^2}, solve definite integral euqation: G(1000)-G(sigma)=-.1 -> sigma = G^{-1}(G[1000] - .1) to receive:
     // sigma = ( -ln[ -x^2 * ( -e^{-x^2 * 1000}/x^2 -.1 ) ] ) / x^2
     // this is the initial sigma value
     // the larger the sigma, the smaller the width of the gaussian, therefore call it inverse sigma
     let x = tuple_max(map_dim.0 , map_dim.1) as f64;
-    let mut inv_sigma = -f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * learning_rate / x.powi(2) - 0.1) / learning_rate) / x.powi(2);
+    let mut inv_sigma = (-f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * learning_rate / x.powi(2) - 0.1) / learning_rate) / x.powi(2)).abs(); //absolute value added toreduce small negative values (non monotnically apporaching 0 as limit)
 
     // inv_sigma changes linearly, larger to small
     // lambda = the constant of change, this iteratively gets multiplied to inv_sigma to increase inv_sigma's value over time
-    let num_loops_f = *num_loops as f64;
+    let num_loops_f = tuple_max(*num_loops, 1) as f64;
     inv_sigma *= lambda * num_loops_f;
 
     // check if minimal gaussian width condition is met
     // end off condition: integral of gaussian (from x -> infin), where x=1, is ge or equal to .1. i.e. G(1000)-G(neigh_level) <= .1 ==> use the minimal value
     // G = ((-1/100 (e^{-100y}))
-    let mut greater_bound_inv_sigma = 2.3025850929940455; // pre calculated, since effect prop = 1 will likely be the most popular value, can add others later
-    let one: f64 = 1.0;
     if *learning_rate != 1.0 {
         greater_bound_inv_sigma = -f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * learning_rate / one.powi(2) - 0.1) / learning_rate) / one.powi(2);
     }
@@ -142,7 +144,7 @@ pub fn changing_standardized_gaussian(
 
     //custom gaussian ae^{-yx^2}, y=inverse sigma, a = effect size
     let neigh_level = neigh_level as f64;
-    return (-1.0 * learning_rate * inv_sigma * neigh_level.powi(2)).exp()
+    return learning_rate * (-1.0 * inv_sigma * neigh_level.powi(2)).exp()
 }
 
 
