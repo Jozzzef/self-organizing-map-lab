@@ -50,8 +50,6 @@ pub fn simple_som(
 
     //create buffer of total distances at each neighbourhood update, for convergence metric
     let mut diff_buff: Vec<f64> = vec![];
-    //convergence metric starts closer to 1 and reduces and reduces non monotonically
-    let mut convergence_metric: f64;
     //training loop starts here
     let mut num_of_loops_done: usize = 0; //this is the number of inputs used, but generalized since assuming we can go through data multiple times before convergence 
     while learning_rate >= 0.0000000000001 {
@@ -64,9 +62,11 @@ pub fn simple_som(
             let diff = neighbourhood_update_real_field(&column_vector, &bmu_vec, &bmu_index, &mut map_matrix, &lambda, &learning_rate, &num_of_loops_done);
             print_matrix_of_vectors(&map_matrix, 2);
             diff_buff.push(diff);
-            convergence_metric = convergence_calculator(&diff_buff, 0.2);
+            println!("{:?}", diff_buff);
+            // converge rate should start at 1 and reduce non monotonically
+            let convergence_metric = convergence_calculator(&diff_buff, 0.2);
             //learning rate decreases alongside convergence metric, this way I can optimize its rate of change later
-            learning_rate -= convergence_metric / 100.0; // 100 is arbitrary untill optimized
+            learning_rate *= convergence_metric.sqrt(); // sqrt is arbitrary untill optimized
             num_of_loops_done += 1;
         }
     }
@@ -237,11 +237,18 @@ pub fn convergence_calculator(diff_buffer: &Vec<f64>, comparison_size:f64) -> f6
     let comparison_size_clamped = comparison_size.clamp(0.001, 1.0);
     let upper_border = (diff_buffer.len() as f64 * comparison_size_clamped) as usize;
     let lower_border = diff_buffer.len() - upper_border;
-    let debug_diff_buffer = diff_buffer[0..upper_border];
     let upper_avg = slice_average(&diff_buffer[0..upper_border]);
-    let lower_avg = slice_average(&diff_buffer[lower_border..(diff_buffer.len()-1)]);
+    let upper_avg = if upper_avg.is_nan() || upper_avg == 0.0 {
+        1.0
+    } else {
+        upper_avg
+    };
+    let lower_avg = if lower_border <= diff_buffer.len()-1 {
+        slice_average(&diff_buffer[lower_border..(diff_buffer.len()-1)])
+    } else {
+        1.0
+    };
     let convergence_metric = lower_avg / upper_avg;
-    
     return convergence_metric //return the proprtion of the newer total distances vs the first total distances. 
 }
 
