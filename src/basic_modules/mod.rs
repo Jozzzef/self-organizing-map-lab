@@ -29,6 +29,7 @@ pub fn simple_som(
     let batch_size = batch_size.unwrap_or(1); //default to 1
     let lambda = lambda_radius_reduction_rate.unwrap_or(1.01).max(1.00000001);
     let mut learning_rate = learning_rate.unwrap_or(1.0);
+    let original_lr = learning_rate;
     
     let input_matrix: DMatrix<f64> = read_csv_to_matrix(input_data_file_path).unwrap();
 
@@ -67,6 +68,7 @@ pub fn simple_som(
             let convergence_metric = convergence_calculator(&diff_buff, 0.2);
             //learning rate decreases alongside convergence metric, this way I can optimize its rate of change later
             learning_rate *= convergence_metric.sqrt(); // sqrt is arbitrary untill optimized
+            learning_rate = learning_rate.clamp(0.0, original_lr);
             num_of_loops_done += 1;
         }
     }
@@ -238,16 +240,13 @@ pub fn convergence_calculator(diff_buffer: &Vec<f64>, comparison_size:f64) -> f6
     let upper_border = (diff_buffer.len() as f64 * comparison_size_clamped) as usize;
     let lower_border = diff_buffer.len() - upper_border;
     let upper_avg = slice_average(&diff_buffer[0..upper_border]);
-    let upper_avg = if upper_avg.is_nan() || upper_avg == 0.0 {
-        1.0
+    let upper_avg = if upper_avg == 0.0 {1.0} else {upper_avg};
+    let mut lower_avg = if lower_border <= diff_buffer.len() {
+        slice_average(&diff_buffer[lower_border..(diff_buffer.len())])
     } else {
         upper_avg
     };
-    let lower_avg = if lower_border <= diff_buffer.len()-1 {
-        slice_average(&diff_buffer[lower_border..(diff_buffer.len()-1)])
-    } else {
-        1.0
-    };
+    if lower_avg > upper_avg { lower_avg = upper_avg };
     let convergence_metric = lower_avg / upper_avg;
     return convergence_metric //return the proprtion of the newer total distances vs the first total distances. 
 }
