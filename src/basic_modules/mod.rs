@@ -53,7 +53,7 @@ pub fn simple_som(
     let mut diff_buff: Vec<f64> = vec![];
     //training loop starts here
     let mut num_of_loops_done: usize = 0; //this is the number of inputs used, but generalized since assuming we can go through data multiple times before convergence 
-    while learning_rate >= 0.0000000000001 {
+    while learning_rate >= 0.000000001 {
         for j in 0..input_matrix.ncols() {
             //calculate Best Matching Unit, i.e. matching vector = the vector with the smallest distance to the input vector
             let column_vector = DVector::from_column_slice(&input_matrix.column(j).as_slice());
@@ -125,19 +125,18 @@ pub fn changing_standardized_gaussian(
     // sigma = ( -ln[ -x^2 * ( -e^{-x^2 * 1000}/x^2 -.1 ) ] ) / x^2
     // this is the initial sigma value
     // the larger the sigma, the smaller the width of the gaussian, therefore call it inverse sigma
-    let x = tuple_max(map_dim.0 , map_dim.1) as f64;
+    let x = (tuple_max(map_dim.0 , map_dim.1)/2) as f64; // div by 2 so the changes only can reach half of matrix
     let mut inv_sigma = (-f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * learning_rate / x.powi(2) - 0.1) / learning_rate) / x.powi(2)).abs(); //absolute value added toreduce small negative values (non monotnically apporaching 0 as limit)
-
     // inv_sigma changes linearly, larger to small
     // lambda = the constant of change, this iteratively gets multiplied to inv_sigma to increase inv_sigma's value over time
     let num_loops_f = tuple_max(*num_loops, 1) as f64;
-    inv_sigma *= lambda * num_loops_f;
+    inv_sigma *= lambda * num_loops_f; 
 
     // check if minimal gaussian width condition is met
     // end off condition: integral of gaussian (from x -> infin), where x=1, is ge or equal to .1. i.e. G(1000)-G(neigh_level) <= .1 ==> use the minimal value
     // G = ((-1/100 (e^{-100y}))
     if *learning_rate != 1.0 {
-        greater_bound_inv_sigma = -f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * learning_rate / one.powi(2) - 0.1) / learning_rate) / one.powi(2);
+        greater_bound_inv_sigma = (-f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * learning_rate / one.powi(2) - 0.1) / learning_rate) / one.powi(2)).abs();
     }
     
     if inv_sigma > greater_bound_inv_sigma {
@@ -146,7 +145,9 @@ pub fn changing_standardized_gaussian(
 
     //custom gaussian ae^{-yx^2}, y=inverse sigma, a = effect size
     let neigh_level = neigh_level as f64;
-    return learning_rate * (-1.0 * inv_sigma * neigh_level.powi(2)).exp()
+    let custom_gaussian = learning_rate * (-1.0 * inv_sigma * neigh_level.powi(2)).exp();
+    //println!("{custom_gaussian} | {learning_rate}");
+    return custom_gaussian 
 }
 
 
@@ -223,7 +224,8 @@ pub fn neighbourhood_update_real_field(
             let mut w : DVector<f64> = map[(index_i, index_j)].clone();
             let vec_diff = input_vec - w.clone();
             //add rolling differences so we can see convergence
-            total_difference += RealField::vector_distance(DistanceMetric::Euclidean, input_vec, &w);
+            let incr_distance = RealField::vector_distance(DistanceMetric::Euclidean, input_vec, &w);
+            total_difference += incr_distance;
             // edit the current vector in the neighbourhood and assign it
             w = w.clone() + (changing_standardized_gaussian(j, num_loops, (map.ncols(), map.nrows()), lambda, learning_rate) * vec_diff);
             map[(index_i, index_j)] = w;
