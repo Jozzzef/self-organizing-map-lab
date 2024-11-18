@@ -53,7 +53,7 @@ pub fn simple_som(
     let mut diff_buff: Vec<f64> = vec![];
     //training loop starts here
     let mut num_of_loops_done: usize = 0; //this is the number of inputs used, but generalized since assuming we can go through data multiple times before convergence 
-    while learning_rate >= 0.000000001 {
+    while learning_rate >= 0.0000001 {
         for j in 0..input_matrix.ncols() {
             //calculate Best Matching Unit, i.e. matching vector = the vector with the smallest distance to the input vector
             let column_vector = DVector::from_column_slice(&input_matrix.column(j).as_slice());
@@ -67,7 +67,7 @@ pub fn simple_som(
             // converge rate should start at 1 and reduce non monotonically
             let convergence_metric = convergence_calculator(&diff_buff, 0.2);
             //learning rate decreases alongside convergence metric, this way I can optimize its rate of change later
-            learning_rate *= convergence_metric.sqrt(); // sqrt is arbitrary untill optimized
+            learning_rate *= convergence_metric.powf(1.0 / 4.0);
             learning_rate = learning_rate.clamp(0.0, original_lr);
             num_of_loops_done += 1;
         }
@@ -118,35 +118,32 @@ pub fn changing_standardized_gaussian(
 
     // constant for learning rate check condition
     let one: f64 = 1.0;
-    let mut greater_bound_inv_sigma = 2.3025850929940455; // pre calculated, since effect prop = 1 will likely be the most popular value, can add others later
 
     // start off condition: integral of gaussian (from x -> infin), where x=max{map's (ncols, nrows)} i.e. the max neigh level, is equal to .1. (1000 is used instead of infin)
     // let sigma=y, let learning_rate=a=1, and g(x,y)=e^{-yx^2}, solve definite integral euqation: G(1000)-G(sigma)=-.1 -> sigma = G^{-1}(G[1000] - .1) to receive:
     // sigma = ( -ln[ -x^2 * ( -e^{-x^2 * 1000}/x^2 -.1 ) ] ) / x^2
     // this is the initial sigma value
     // the larger the sigma, the smaller the width of the gaussian, therefore call it inverse sigma
-    let x = (tuple_max(map_dim.0 , map_dim.1)/2) as f64; // div by 2 so the changes only can reach half of matrix
-    let mut inv_sigma = (-f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * learning_rate / x.powi(2) - 0.1) / learning_rate) / x.powi(2)).abs(); //absolute value added toreduce small negative values (non monotnically apporaching 0 as limit)
+    let x = (tuple_max(map_dim.0 , map_dim.1)) as f64; // div by 2 so the changes only can reach half of matrix
+    // we do not want the gaussian morphing with the learning rate as it stands, so as if learning rate = 1
+    // inv_sigma = (-f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * learning_rate / x.powi(2) - 0.1) / learning_rate) / x.powi(2)).abs(); //absolute value added toreduce small negative values (non monotnically apporaching 0 as limit)
+    let mut inv_sigma = (-f64::ln(-x.powi(2) * (-f64::exp(-x.powi(2) * 1000.0) * one / x.powi(2) - 0.1) / one ) / x.powi(2)).abs(); //absolute value added toreduce small negative values (non monotnically apporaching 0 as limit)
+    // check if minimal gaussian width condition is met
+    // end off condition: integral of gaussian (from x -> infin), where x=1, is ge or equal to .1. i.e. G(1000)-G(neigh_level) <= .1 ==> use the minimal value
+    // G = ((-1/100 (e^{-100y}))
+    //greater_bound_inv_sigma = (-f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * learning_rate / one.powi(2) - 0.1) / learning_rate) / one.powi(2)).abs();
+    let greater_bound_inv_sigma = (-f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * one / one.powi(2) - 0.1) / one) / one.powi(2)).abs();
     // inv_sigma changes linearly, larger to small
     // lambda = the constant of change, this iteratively gets multiplied to inv_sigma to increase inv_sigma's value over time
     let num_loops_f = tuple_max(*num_loops, 1) as f64;
     inv_sigma *= lambda * num_loops_f; 
-
-    // check if minimal gaussian width condition is met
-    // end off condition: integral of gaussian (from x -> infin), where x=1, is ge or equal to .1. i.e. G(1000)-G(neigh_level) <= .1 ==> use the minimal value
-    // G = ((-1/100 (e^{-100y}))
-    if *learning_rate != 1.0 {
-        greater_bound_inv_sigma = (-f64::ln(-one.powi(2) * (-f64::exp(-one.powi(2) * 1000.0) * learning_rate / one.powi(2) - 0.1) / learning_rate) / one.powi(2)).abs();
-    }
-    
+    //custom gaussian ae^{-yx^2}, y=inverse sigma, a = effect size
     if inv_sigma > greater_bound_inv_sigma {
         inv_sigma = greater_bound_inv_sigma;
     }
-
-    //custom gaussian ae^{-yx^2}, y=inverse sigma, a = effect size
     let neigh_level = neigh_level as f64;
     let custom_gaussian = learning_rate * (-1.0 * inv_sigma * neigh_level.powi(2)).exp();
-    //println!("{custom_gaussian} | {learning_rate}");
+    //println!("{custom_gaussian} | {learning_rate} | {inv_sigma}");
     return custom_gaussian 
 }
 
@@ -221,14 +218,15 @@ pub fn neighbourhood_update_real_field(
         for p in 0..set_of_neighbourhoods[j].len(){
             let index_i = set_of_neighbourhoods[j][p][0];
             let index_j = set_of_neighbourhoods[j][p][1];
-            let mut w : DVector<f64> = map[(index_i, index_j)].clone();
+            let w : DVector<f64> = map[(index_i, index_j)].clone();
             let vec_diff = input_vec - w.clone();
+            // edit the current vector in the neighbourhood
+            let w_new = w.clone() + (changing_standardized_gaussian(j, num_loops, (map.ncols(), map.nrows()), lambda, learning_rate) * vec_diff);
             //add rolling differences so we can see convergence
-            let incr_distance = RealField::vector_distance(DistanceMetric::Euclidean, input_vec, &w);
+            let incr_distance = (RealField::vector_distance(DistanceMetric::Euclidean, &w_new, &w)).abs();
             total_difference += incr_distance;
-            // edit the current vector in the neighbourhood and assign it
-            w = w.clone() + (changing_standardized_gaussian(j, num_loops, (map.ncols(), map.nrows()), lambda, learning_rate) * vec_diff);
-            map[(index_i, index_j)] = w;
+            //assign new vector
+            *map.get_mut((index_i, index_j)).unwrap() = w_new; 
         }
     }
 
