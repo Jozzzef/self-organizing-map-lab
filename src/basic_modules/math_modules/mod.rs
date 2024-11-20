@@ -74,3 +74,6 @@ pub fn slice_average(slice: &[f64]) -> f64 {
     let avg = sum / slice.len() as f64;
     if avg.is_nan() {1.0} else {avg}
 }
+
+
+
