@@ -1,4 +1,4 @@
-use plotters::{data::float, prelude::*};
+use plotters::prelude::*;
 use nalgebra::{DMatrix, DVector};
 use std::cmp::max as tuple_max;
 
@@ -72,6 +72,41 @@ pub fn dmatrix_to_vec<T: Clone>(matrix: &DMatrix<T>) -> Vec<Vec<T>> {
     result
 }
 
+
+fn hue_to_rgb(p: f64, q: f64, mut t: f64) -> f64 {
+    if t < 0.0 { t += 1.0; }
+    if t > 1.0 { t -= 1.0; }
+    if t < 1.0/6.0 { return p + (q - p) * 6.0 * t; }
+    if t < 1.0/2.0 { return q; }
+    if t < 2.0/3.0 { return p + (q - p) * (2.0/3.0 - t) * 6.0; }
+    p
+}
+
+fn hsl_to_rgb(mut h: f64, s: f64, l: f64) -> (f64, f64, f64) {
+    // 1. Normalize hue to 0-1 range
+    h = h / 360.0;
+
+    // Handle grayscale case
+    if s == 0.0 {
+        let gray = (l * 255.0).round();
+        return (gray, gray, gray);
+    }
+
+    // 2. Calculate q and p
+    let q = if l < 0.5 {
+        l * (1.0 + s)
+    } else {
+        l + s - (l * s)
+    };
+    let p = 2.0 * l - q;
+
+    let r = (hue_to_rgb(p, q, h + 1.0/3.0) * 255.0).round();
+    let g = (hue_to_rgb(p, q, h) * 255.0).round();
+    let b = (hue_to_rgb(p, q, h - 1.0/3.0) * 255.0).round();
+    return (r, g, b)
+}
+
+
 pub fn basic_visualization(som_map: &DMatrix<DVector<f64>>, 
     saturation: f64, 
     lightness: f64,
@@ -111,12 +146,15 @@ pub fn basic_visualization(som_map: &DMatrix<DVector<f64>>,
             )
             .map(|(x, y, v)| {
                 let v_float = *v as f64;
-                println!("{x}, {y}, {v_float}");
-                let hsl_colors = HSLColor(v_float, saturation, lightness).filled();
-                println!("{:#?}", hsl_colors);
+                let (r,g,b) = hsl_to_rgb(v_float, saturation, lightness);
+                let style = ShapeStyle {
+                    color: RGBAColor(r as u8, g as u8, b as u8, 1.0),
+                    filled: true,
+                    stroke_width: 1,
+                };                
                 let mut rect = Rectangle::new(
                     [(x,y), (x+1, y+1)],
-                    HSLColor(v_float, saturation, lightness).filled()
+                    style
                 );
                 rect.set_margin(1, 1, 1, 1);
                 return rect
