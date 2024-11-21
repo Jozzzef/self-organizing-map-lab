@@ -1,5 +1,5 @@
 use plotters::prelude::*;
-use nalgebra::{DMatrix, DVector};
+use nalgebra::{coordinates, DMatrix, DVector};
 use std::cmp::max as tuple_max;
 
 pub fn vector_magnitude_for_hue(som_map: &DMatrix<DVector<f64>>) -> DMatrix<isize> {
@@ -115,24 +115,32 @@ pub fn basic_visualization(som_map: &DMatrix<DVector<f64>>,
     
     let max_dim = tuple_max(som_map.nrows(), som_map.ncols());
 
-    let canvas = SVGBackend::new(image_path, (800,800)).into_drawing_area();
-    canvas.fill(&WHITE)?;
+    let canvas_tuple = SVGBackend::new(image_path, (1000,800)).into_drawing_area().split_horizontally(700);
+    canvas_tuple.0.fill(&WHITE)?;
+    canvas_tuple.1.fill(&WHITE)?;
 
-    let mut chart = ChartBuilder::on(&canvas)
+    let mut chart = ChartBuilder::on(&canvas_tuple.0)
         .caption("Basic SOM Chart", ("sans-serif", 30))
         .margin(5) //in pixels
+        .margin_bottom(40)
+        .margin_right(40)
+        .y_label_area_size(35)
+        .x_label_area_size(35)
         .build_cartesian_2d(0..max_dim, 0..max_dim)?;
     
     chart
         .configure_mesh() //configure mesh/grid
-            .x_labels(max_dim / 2) //label each dimension? param is the number of labels in the dimension
-            .y_labels(max_dim / 2)
-            .draw()?;
+        .x_labels(max_dim / 2) //label each dimension? param is the number of labels in the dimension
+        .y_labels(max_dim / 2)
+        .disable_x_mesh()
+        .disable_y_mesh()
+        .label_style(("sans-serif", 20))
+        .draw()?;
 
     let hue_matrix = vector_magnitude_for_hue(&som_map);
     let vec_hue_matrix = dmatrix_to_vec(&hue_matrix);
     // for debugging
-    
+   println!("{hue_matrix}"); 
 
     chart.draw_series(
         vec_hue_matrix
@@ -161,6 +169,47 @@ pub fn basic_visualization(som_map: &DMatrix<DVector<f64>>,
             }   
         ))?;
 
-    canvas.present()?;
+    // for legend split
+    let mut chart_for_legend = ChartBuilder::on(&canvas_tuple.1)
+        .caption("The Diagonal Of SOM Matrix", ("sans-serif", 30))
+        .margin(5) //in pixels
+        .margin_bottom(40)
+        .margin_right(40)
+        .y_label_area_size(35)
+        .top_x_label_area_size(35)
+        .build_cartesian_2d(0..1, 0..max_dim)?;
+
+    let som_map_to_vec = dmatrix_to_vec(som_map);
+    chart_for_legend.draw_series(
+        som_map_to_vec 
+            .iter()
+            .zip(0..)
+            .flat_map(|(l, y)| {
+                l
+                    .iter()
+                    .zip(0..)
+                    .map(move |(vec, x)| (x, y, vec))}
+            )
+            .filter(|(x,y,vec)| x == y)
+            .map(|(x, y, vec)| {
+                let v_float = hue_matrix[(x,y)] as f64;
+                let (r,g,b) = hsl_to_rgb(v_float, saturation, lightness);
+                let style = ShapeStyle {
+                    color: RGBAColor(r as u8, g as u8, b as u8, 1.0),
+                    filled: true,
+                    stroke_width: 1,
+                };                
+                let mut rect = Rectangle::new(
+                    [(0,y), (1, y+1)],
+                    style
+                );
+                rect.set_margin(1, 1, 1, 1);
+                return rect 
+                //Text::new(format!("vec @ ({x},{y}): {:?}", vec), (x,y), ("sans-serif", 10));
+            }   
+        ))?;
+        
+    canvas_tuple.0.present()?;
+    canvas_tuple.1.present()?;
     return Ok(());
 }
