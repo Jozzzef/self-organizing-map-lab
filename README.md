@@ -12,7 +12,7 @@
 
 #### Additional Notes
 
-current sttate of algebras:
+current state of algebras:
 * polymorphism moved up the chain so that each algebra has it's own SOM function, this allows code to be more readable and have less edge cases
 
 current state of visuals:
