@@ -1,3 +1,5 @@
+use super::{BinaryField, Complex, IntegerRing};
+
 #[derive(Debug, Copy, Clone)]
 pub enum DistanceMetric {
     Euclidean,
@@ -8,7 +10,16 @@ pub enum DistanceMetric {
     Levenshtein,
     Hamming,
     CrossEntropy,
-    KLDivergence
+    KLDivergence,
+}
+
+pub enum TypeStructs {
+    RealField,
+    BinaryField,
+    Bits,
+    Complex,
+    IntegerRing,
+    StringGroup 
 }
 
 #[derive(Debug, Clone, Copy)]
