@@ -6,24 +6,83 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Sub;
 
-//for text functions
-use std::fs;
-use std::path::Path;
-
-// Import the Error trait
-use std::env;
-use std::error::Error;
-
 // shared functionality between modules imports
 use crate::basic_modules::shared::DistanceMetric;
-use crate::basic_modules::math_modules::shared_math::*;
+use crate::basic_modules::math_modules::*;
 
-//initialize the algebra's struct
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Real Field Algebra's Struct
 pub struct RealField(pub f64);
 
-//implement inherent operations to the algebra that are needed for SOMs
+impl std::ops::Deref for RealField {
+    type Target = f64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Implement well known algebra operations
+/// The operations are not necessarily used, they are defined to keep uniform defintion between our custom types defined
+/// the reason why its not to be used is because we do not want the extra step of needing to wrap f64s in a struct to perform operations on f64s
+/// the non well known algebra operations are used though, and the notation of being a method on a struct keeps the rest of the SOM code uniform
+// Implement Deref to allow transparent access to f64 methods
+impl Add for RealField {
+    type Output = RealField;
+
+    fn add(self, other: RealField) -> RealField {
+        return Self(self.0 + other.0);
+    }
+}
+
+/// Implement well known algebra operations
+/// The operations are not necessarily used, they are defined to keep uniform defintion between our custom types defined
+/// the reason why its not to be used is because we do not want the extra step of needing to wrap f64s in a struct to perform operations on f64s
+/// the non well known algebra operations are used though, and the notation of being a method on a struct keeps the rest of the SOM code uniform
+// Implement Deref to allow transparent access to f64 methods
+impl Sub for RealField {
+    type Output = RealField;
+
+    fn sub(self, other: RealField) -> RealField {
+        return Self(self.0 - other.0);
+    }
+}
+
+/// Implement well known algebra operations
+/// The operations are not necessarily used, they are defined to keep uniform defintion between our custom types defined
+/// the reason why its not to be used is because we do not want the extra step of needing to wrap f64s in a struct to perform operations on f64s
+/// the non well known algebra operations are used though, and the notation of being a method on a struct keeps the rest of the SOM code uniform
+// Implement Deref to allow transparent access to f64 methods
+impl Mul for RealField {
+    // add is equivalent to AND
+    type Output = RealField;
+
+    fn mul(self, other: RealField) -> RealField {
+        return Self(self.0 * other.0);
+    }
+}
+
+/// Implement well known algebra operations
+/// The operations are not necessarily used, they are defined to keep uniform defintion between our custom types defined
+/// the reason why its not to be used is because we do not want the extra step of needing to wrap f64s in a struct to perform operations on f64s
+/// the non well known algebra operations are used though, and the notation of being a method on a struct keeps the rest of the SOM code uniform
+// Implement Deref to allow transparent access to f64 methods
+impl Div for RealField {
+    // add is equivalent to NAND
+    type Output = RealField;
+
+    fn div(self, other: RealField) -> RealField {
+        return Self(self.0 / other.0);
+    }
+}
+
+// implement inherent operations to the algebra that are needed for SOMs
 impl RealField {
+    /// case #1 (DistanceMetric::Euclidean):
+    /// 
+    /// case #2 (DistanceMetric::Minkowski):
+    /// 
+    /// case #3 (DistanceMetric::Chebyshev):
     pub fn vector_distance(metric: DistanceMetric, v: &DVector<f64>, w: &DVector<f64>) -> f64 {
         match metric {
             DistanceMetric::Euclidean => {
@@ -46,16 +105,16 @@ impl RealField {
         }
     }
 
+
+    ///The generalized definition of a median of a set of objects is "a new object which has the smallest sum of distances to all objects in that set".
+    ///An optional requirement is that the median has to already be a member of the existing set. It is enforced here for efficiency purposes.
+    ///A generalized mean should be used for the case where it is not necessarily in the batch vector set but in the algebraic set.
+    ///gen_med = argmin_m{\sum_{i \in S} distance(i,m)}
+    ///handles abstract types automatically because of distance_calc func usage
     pub fn vector_median(
         metric: DistanceMetric,
         batch_vectors: &mut Vec<DVector<f64>>,
     ) -> DVector<f64> {
-        //the generalized definition of a median of a set of objects is "a new object which has the smallest sum of distances to all objects in that set".
-        //an optional requirement is that the median has to already be a member of the existing set.
-        //it is enforced here for efficiency purposes.
-        //A generalized mean should be used for the case where it is not necessarily in the batch vector set but in the algebraic set.
-        //gen_med = argmin_m{\sum_{i \in S} distance(i,m)}
-        //handles abstract types automatically because of distance_calc func usage
         let mut min_distance_index: usize = 0; // the index of that minimal distance vector
         let mut min_sum_distance: f64 = 0.0; // the distance of that minimal distance vector
         let mut has_first_loop_occured: bool = false;
@@ -83,11 +142,13 @@ impl RealField {
         return batch_vectors[min_distance_index].clone();
     }
 
+    /// return a random f64
     pub fn random_value() -> f64 {
         return random::<f64>();
     }
 
-    // Best Matching Unit is the closest vector in the map to the current input vector (or median of batch input vectors)
+    /// Best Matching Unit is the closest vector in the map to the current input vector (or median of batch input vectors)
+    /// returns (bmu vector value, it's index in matrix, it's distance from y)
     pub fn get_best_matching_unit(
         y: &DVector<f64>,
         som_map: &DMatrix<DVector<f64>>,
@@ -115,7 +176,7 @@ impl RealField {
             min_vector,
             vec![min_distance_index.0, min_distance_index.1],
             min_distance,
-        ); //(bmu vector value, it's index in matrix, it's distance from y)
+        ); 
     }
 
     pub fn neighbourhood_update(
@@ -220,110 +281,6 @@ impl RealField {
 
         return total_difference;
     }
-
-    //text functions
-    pub fn read_csv_to_matrix(path: String) -> Result<DMatrix<f64>, Box<dyn Error>> {
-        let relative_path = Path::new(&path);
-        let current_dir = env::current_dir()?;
-        let combined_path = current_dir.join(relative_path);
-        let absolute_path = fs::canonicalize(combined_path)?;
-
-        // Create a CSV reader using the default settings
-        let mut rdr = csv::Reader::from_path(absolute_path)?;
-        // Skip the first row (header row)
-        let _headers = rdr.headers()?;
-
-        // Initialize a vector to hold the flat data from the CSV
-        let mut data: Vec<f64> = Vec::new();
-        let mut num_rows = 0;
-        let mut num_cols = 0;
-
-        // Iterate over each record in the CSV
-        for (i, result) in rdr.records().enumerate() {
-            let record = result?; // Unwrap the result using `?`
-
-            // Get the number of columns from the first record
-            if i == 0 {
-                num_cols = record.len();
-            }
-
-            // Parse each field as a f64 and collect it into the data vector
-            for field in record.iter() {
-                data.push(field.parse::<f64>()?);
-            }
-            num_rows += 1;
-        }
-
-        let matrix = DMatrix::from_row_slice(num_rows, num_cols, &data);
-        Ok(matrix)
-    }
-
-    pub fn print_matrix_of_vectors(matrix: &DMatrix<DVector<f64>>, float_precision: usize) {
-        let nrows = matrix.nrows();
-        let ncols = matrix.ncols();
-        println!("start {ncols} x {nrows} matrix");
-        println!();
-        for row in 0..nrows {
-            println!("m={row}");
-            for col in 0..ncols {
-                let vector = &matrix[(row, col)]; // Access the vector in the matrix cell
-                print!("    [");
-                for (i, val) in vector.iter().enumerate() {
-                    if i > 0 {
-                        print!(", "); // Print a comma between vector elements
-                    }
-                    print!("{:.prec$}", val, prec = float_precision); // Format each vector value
-                }
-                print!("]   ");
-            }
-            println!(); // Newline after each matrix row
-            println!();
-        }
-        println!("end {ncols} x {nrows} matrix");
-    }
 }
 
-// implement well known algebra operations
 
-// Implement Deref to allow transparent access to f64 methods
-impl std::ops::Deref for RealField {
-    type Target = f64;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Add for RealField {
-    type Output = RealField;
-
-    fn add(self, other: RealField) -> RealField {
-        return Self(self.0 + other.0);
-    }
-}
-
-impl Sub for RealField {
-    type Output = RealField;
-
-    fn sub(self, other: RealField) -> RealField {
-        return Self(self.0 - other.0);
-    }
-}
-
-impl Mul for RealField {
-    // add is equivalent to AND
-    type Output = RealField;
-
-    fn mul(self, other: RealField) -> RealField {
-        return Self(self.0 * other.0);
-    }
-}
-
-impl Div for RealField {
-    // add is equivalent to NAND
-    type Output = RealField;
-
-    fn div(self, other: RealField) -> RealField {
-        return Self(self.0 / other.0);
-    }
-}
