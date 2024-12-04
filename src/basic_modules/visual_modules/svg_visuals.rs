@@ -202,14 +202,14 @@ pub fn basic_visualization(
         //custom formatting for stringed vector
         let s = som_map[random_index]
             .iter()
-            .map(|x| x.to_string())
+            .map(|x| format!("{:.2}", x))
             .collect::<Vec<_>>()
             .join(", ");
         let s = ["[", &s, "]"].join("");
 
         legend_tuples.push((
             s,
-            (1, max_dim as i32)
+            (0, 1 + i)
         ));
     }
 
