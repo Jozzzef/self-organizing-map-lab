@@ -12,10 +12,6 @@ pub use visual_modules::print_matrix_of_vectors;
 //shared globals
 pub mod shared;
 use shared::DistanceMetric;
-//csv helpers
-pub mod csv_funcs;
-use csv_funcs::read_csv_to_matrix_real_field;
-
 // SIMPLE SOMs based on types
 
 /// Simple SOM using f64 values
@@ -41,7 +37,7 @@ pub fn simple_som_real_field(
     let mut learning_rate = learning_rate.unwrap_or(1.0); // default to a neutral multiplication
     let original_lr = learning_rate; //copy trait automatically invoked for f64 values, original learning rate stays static for comparison
 
-    let input_matrix: DMatrix<f64> = read_csv_to_matrix_real_field(input_data_file_path).unwrap(); // 🔢 init matrix to take vectors as training inputs 
+    let input_matrix: DMatrix<f64> = RealField::read_csv_to_matrix_real_field(input_data_file_path).unwrap(); // 🔢 init matrix to take vectors as training inputs 
 
     let mut map_matrix: DMatrix<DVector<f64>> =
         DMatrix::from_fn(map_size_2d.0, map_size_2d.1, |_i, _j| {

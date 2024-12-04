@@ -1,5 +1,5 @@
 //Dependencies
-use nalgebra::DVector;
+use nalgebra::{DVector, DMatrix};
 
 use rand::distributions::{Bernoulli, Distribution};
 
@@ -9,10 +9,20 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Sub;
 
+//for text functions
+use std::fs;
+use std::path::Path;
+
+// Import the Error trait
+use std::env;
+use std::error::Error;
+
+
 //global variables import
 use crate::basic_modules::shared::Bits;
-use crate::basic_modules::shared::DistanceMetric;
 use crate::basic_modules::shared::BINARY_FIELD_LENGTH;
+use crate::basic_modules::shared::DistanceMetric;
+use crate::basic_modules::math_modules::*;
 
 //module import
 //use crate::basic_modules::math_modules::*;
@@ -167,4 +177,37 @@ impl BinaryField {
         let return_value = BinaryField(arr);
         return return_value;
     }
+
+    /// Best Matching Unit is the closest vector in the map to the current input vector (or median of batch input vectors)
+    /// returns (bmu vector value, it's index in matrix, it's distance from y)
+    pub fn get_best_matching_unit(
+        y: &DVector<BinaryField>,
+        som_map: &DMatrix<DVector<BinaryField>>,
+        metric: DistanceMetric,
+    ) -> (DVector<BinaryField>, Vec<usize>, f64) {
+        let mut min_distance: f64 = 0.0;
+        let mut min_distance_index: (usize, usize) = (0, 0);
+        let mut is_first_loop: bool = true;
+        // Apply a transformation to each element in place
+        for i in 0..som_map.nrows() {
+            for j in 0..som_map.ncols() {
+                // Access each element by mutable reference
+                let curr_dist = BinaryField::vector_distance(metric, y, &som_map[(i, j)]);
+                if !is_first_loop && curr_dist < min_distance {
+                    min_distance = curr_dist;
+                    min_distance_index = (i, j);
+                } else if is_first_loop {
+                    min_distance = curr_dist;
+                    is_first_loop = false;
+                }
+            }
+        }
+        let min_vector = som_map[min_distance_index].clone();
+        return (
+            min_vector,
+            vec![min_distance_index.0, min_distance_index.1],
+            min_distance,
+        ); 
+    }
+
 }

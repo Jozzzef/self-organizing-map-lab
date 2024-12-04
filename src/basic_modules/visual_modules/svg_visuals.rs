@@ -1,6 +1,7 @@
 use nalgebra::{DMatrix, DVector};
 use plotters::prelude::*;
 use std::cmp::max as tuple_max;
+use rand::Rng;
 
 // SVG VISUALS
 
@@ -26,8 +27,8 @@ pub fn vector_magnitude_for_hue(som_map: &DMatrix<DVector<f64>>) -> DMatrix<isiz
     let min_val_hue_matrix = hue_matrix.min();
     let max_dim = tuple_max(hue_matrix.nrows(), hue_matrix.ncols()) as isize;
     let partitions_tile_size = (max_val_hue_matrix - min_val_hue_matrix) / (max_dim as isize) + 1;
-    let mut hue_partition_for_360 = vec![Vec::new(); max_dim as usize];
-    let mut hue_partition_for_360_without_index = vec![Vec::new(); max_dim as usize];
+    let mut hue_partition_for_280 = vec![Vec::new(); max_dim as usize];
+    let mut hue_partition_for_280_without_index = vec![Vec::new(); max_dim as usize];
 
     for i in 0..hue_matrix.nrows() {
         for j in 0..hue_matrix.ncols() {
@@ -36,24 +37,24 @@ pub fn vector_magnitude_for_hue(som_map: &DMatrix<DVector<f64>>) -> DMatrix<isiz
                 let min_k = min_val_hue_matrix + k * partitions_tile_size;
                 let max_k = min_val_hue_matrix + (k + 1) * partitions_tile_size;
                 if min_k <= hue && hue < max_k {
-                    hue_partition_for_360[k as usize].push(((i, j), hue));
-                    hue_partition_for_360_without_index[k as usize].push(hue);
+                    hue_partition_for_280[k as usize].push(((i, j), hue));
+                    hue_partition_for_280_without_index[k as usize].push(hue);
                 }
             }
         }
     }
 
     for i in 0..max_dim {
-        let w = hue_partition_for_360_without_index[i as usize].clone();
+        let w = hue_partition_for_280_without_index[i as usize].clone();
         let input_max = *w.iter().max().unwrap() as f64;
         let input_min = *w.iter().min().unwrap() as f64;
-        let output_max = ((i + 1) * 360 / max_dim) as f64;
+        let output_max = ((i + 1) * 280 / max_dim) as f64;
         let output_min = if i == 0 {
             0.0
         } else {
-            (i * 360 / max_dim) as f64
+            (i * 280 / max_dim) as f64
         };
-        for (index, hue) in hue_partition_for_360[i as usize].clone() {
+        for (index, hue) in hue_partition_for_280[i as usize].clone() {
             let hue = hue as f64;
             let ratio: f64 = (hue - input_min) / (input_max - input_min);
             let result: f64 = output_min + ratio * (output_max - output_min);
@@ -100,7 +101,7 @@ fn hue_to_rgb(p: f64, q: f64, mut t: f64) -> f64 {
 
 fn hsl_to_rgb(mut h: f64, s: f64, l: f64) -> (f64, f64, f64) {
     // 1. Normalize hue to 0-1 range
-    h = h / 360.0;
+    h = h / 280.0;
 
     // Handle grayscale case
     if s == 0.0 {
@@ -129,8 +130,10 @@ pub fn basic_visualization(
     image_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let max_dim = tuple_max(som_map.nrows(), som_map.ncols());
+    let y_size: i32 = 800;
+    let x_size: i32 = 1000;
 
-    let canvas_tuple = SVGBackend::new(image_path, (1000, 800))
+    let canvas_tuple = SVGBackend::new(image_path, (x_size as u32, y_size as u32))
         .into_drawing_area()
         .split_horizontally(700);
     canvas_tuple.0.fill(&WHITE)?;
@@ -180,35 +183,44 @@ pub fn basic_visualization(
 
     // for legend split
     let mut chart_for_legend = ChartBuilder::on(&canvas_tuple.1)
-        .caption("The Diagonal Of SOM Matrix", ("sans-serif", 30))
+        .caption("Legend For Vectors", ("sans-serif", 30))
         .margin(5) //in pixels
         .margin_bottom(40)
         .margin_right(40)
         .y_label_area_size(35)
         .top_x_label_area_size(35)
-        .build_cartesian_2d(0..1, 0..max_dim)?;
+        .build_cartesian_2d(0_i32..1, 0..(max_dim as i32))?;
 
-    let som_map_to_vec = dmatrix_to_vec(som_map);
-    chart_for_legend.draw_series(
-        som_map_to_vec
+
+    //get random vectors to sample from and put in a vector of tuples
+    let mut legend_tuples : Vec<(String, (i32, i32))> = vec![];
+
+    let num_of_legend_vals = 6; 
+    for i in 1..=num_of_legend_vals{
+        let random_index = rand::thread_rng().gen_range(1..=100); 
+
+        //custom formatting for stringed vector
+        let s = som_map[random_index]
             .iter()
-            .zip(0..)
-            .flat_map(|(l, y)| l.iter().zip(0..).map(move |(vec, x)| (x, y, vec)))
-            .filter(|(x, y, vec)| x == y)
-            .map(|(x, y, vec)| {
-                let v_float = hue_matrix[(x, y)] as f64;
-                let (r, g, b) = hsl_to_rgb(v_float, saturation, lightness);
-                let style = ShapeStyle {
-                    color: RGBAColor(r as u8, g as u8, b as u8, 1.0),
-                    filled: true,
-                    stroke_width: 1,
-                };
-                let mut rect = Rectangle::new([(0, y), (1, y + 1)], style);
-                rect.set_margin(1, 1, 1, 1);
-                return rect;
-                //Text::new(format!("vec @ ({x},{y}): {:?}", vec), (x,y), ("sans-serif", 10));
-            }),
-    )?;
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let s = ["[", &s, "]"].join("");
+
+        legend_tuples.push((
+            s,
+            (1, max_dim as i32)
+        ));
+    }
+
+    chart_for_legend.draw_series(
+       legend_tuples.into_iter().map(|t| {
+        Text::new(
+            t.0,
+            t.1,
+            ("sans-serif", 10).into_font().color(&BLACK),
+        )
+    }))?;
 
     canvas_tuple.0.present()?;
     canvas_tuple.1.present()?;

@@ -22,7 +22,7 @@ fn main() {
     //train SOM
     let som_output: DMatrix<DVector<f64>> = simple_som_real_field(
         input_file_path, 
-        (9,9), 
+        (32,32), 
         None, 
         None, 
         None);
@@ -43,7 +43,7 @@ fn main() {
         Err(e) => println!("Error creating image folder (/image_outputs): {}", e),
     }
 
-    match basic_visualization(&som_output, 0.7, 0.9, image_path) {
+    match basic_visualization(&som_output, 0.95, 0.85, image_path) {
         Ok(()) => println!("Image Outputted"),
         Err(e) => eprintln!("Error: {}", e)
     } 
