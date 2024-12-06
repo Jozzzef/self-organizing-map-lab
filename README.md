@@ -16,6 +16,6 @@ current state of algebras:
 * polymorphism moved up the chain so that each algebra has it's own SOM function, this allows code to be more readable and have less edge cases
 
 current state of visuals:
-* getting plotters to work with Text has proven difficult
-* current state of very basic visual when trying to add text: 
+* need to implmement more control + reactive visuals
+* current state of the basic visual:
 <img src="./temp_image.svg">

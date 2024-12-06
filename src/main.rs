@@ -22,7 +22,7 @@ fn main() {
     //train SOM
     let som_output: DMatrix<DVector<f64>> = simple_som_real_field(
         input_file_path, 
-        (32,32), 
+        (64,64), 
         None, 
         None, 
         None);

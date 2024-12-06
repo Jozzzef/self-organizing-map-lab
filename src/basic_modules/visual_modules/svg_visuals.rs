@@ -27,8 +27,8 @@ pub fn vector_magnitude_for_hue(som_map: &DMatrix<DVector<f64>>) -> DMatrix<isiz
     let min_val_hue_matrix = hue_matrix.min();
     let max_dim = tuple_max(hue_matrix.nrows(), hue_matrix.ncols()) as isize;
     let partitions_tile_size = (max_val_hue_matrix - min_val_hue_matrix) / (max_dim as isize) + 1;
-    let mut hue_partition_for_280 = vec![Vec::new(); max_dim as usize];
-    let mut hue_partition_for_280_without_index = vec![Vec::new(); max_dim as usize];
+    let mut hue_partition_for_260 = vec![Vec::new(); max_dim as usize];
+    let mut hue_partition_for_260_without_index = vec![Vec::new(); max_dim as usize];
 
     for i in 0..hue_matrix.nrows() {
         for j in 0..hue_matrix.ncols() {
@@ -37,24 +37,24 @@ pub fn vector_magnitude_for_hue(som_map: &DMatrix<DVector<f64>>) -> DMatrix<isiz
                 let min_k = min_val_hue_matrix + k * partitions_tile_size;
                 let max_k = min_val_hue_matrix + (k + 1) * partitions_tile_size;
                 if min_k <= hue && hue < max_k {
-                    hue_partition_for_280[k as usize].push(((i, j), hue));
-                    hue_partition_for_280_without_index[k as usize].push(hue);
+                    hue_partition_for_260[k as usize].push(((i, j), hue));
+                    hue_partition_for_260_without_index[k as usize].push(hue);
                 }
             }
         }
     }
 
     for i in 0..max_dim {
-        let w = hue_partition_for_280_without_index[i as usize].clone();
-        let input_max = *w.iter().max().unwrap() as f64;
-        let input_min = *w.iter().min().unwrap() as f64;
-        let output_max = ((i + 1) * 280 / max_dim) as f64;
+        let w = hue_partition_for_260_without_index[i as usize].clone();
+        let input_max = *w.iter().max().unwrap_or(&0) as f64;
+        let input_min = *w.iter().min().unwrap_or(&0) as f64;
+        let output_max = ((i + 1) * 260 / max_dim) as f64;
         let output_min = if i == 0 {
             0.0
         } else {
-            (i * 280 / max_dim) as f64
+            (i * 260 / max_dim) as f64
         };
-        for (index, hue) in hue_partition_for_280[i as usize].clone() {
+        for (index, hue) in hue_partition_for_260[i as usize].clone() {
             let hue = hue as f64;
             let ratio: f64 = (hue - input_min) / (input_max - input_min);
             let result: f64 = output_min + ratio * (output_max - output_min);
@@ -101,7 +101,7 @@ fn hue_to_rgb(p: f64, q: f64, mut t: f64) -> f64 {
 
 fn hsl_to_rgb(mut h: f64, s: f64, l: f64) -> (f64, f64, f64) {
     // 1. Normalize hue to 0-1 range
-    h = h / 280.0;
+    h = h / 260.0;
 
     // Handle grayscale case
     if s == 0.0 {
@@ -184,43 +184,62 @@ pub fn basic_visualization(
     // for legend split
     let mut chart_for_legend = ChartBuilder::on(&canvas_tuple.1)
         .caption("Legend For Vectors", ("sans-serif", 30))
-        .margin(5) //in pixels
-        .margin_bottom(40)
-        .margin_right(40)
-        .y_label_area_size(35)
-        .top_x_label_area_size(35)
-        .build_cartesian_2d(0_i32..1, 0..(max_dim as i32))?;
+        .margin_top(40) //in pixels
+        .y_label_area_size(40)
+        .x_label_area_size(40)
+        .build_cartesian_2d(0_f32..2_f32, 0_f32..6_f32)?;
 
 
     //get random vectors to sample from and put in a vector of tuples
-    let mut legend_tuples : Vec<(String, (i32, i32))> = vec![];
+    let mut legend_tuples : Vec<(String, (f32, f32), f64)> = vec![];
 
     let num_of_legend_vals = 6; 
-    for i in 1..=num_of_legend_vals{
-        let random_index = rand::thread_rng().gen_range(1..=100); 
+
+    for i in 0..num_of_legend_vals{
+        let matrix_i_start = som_map.nrows() / num_of_legend_vals * i;
+        let matrix_j_start = som_map.ncols() / num_of_legend_vals * i;
+        let matrix_i_end = som_map.nrows() / num_of_legend_vals * (i+1);
+        let matrix_j_end = som_map.ncols() /num_of_legend_vals * (i+1);
+        let random_i = rand::thread_rng().gen_range(matrix_i_start..matrix_i_end); 
+        let random_j = rand::thread_rng().gen_range(matrix_j_start..matrix_j_end);
 
         //custom formatting for stringed vector
-        let s = som_map[random_index]
+        let s = som_map.index((random_i, random_j))
             .iter()
             .map(|x| format!("{:.2}", x))
             .collect::<Vec<_>>()
-            .join(", ");
-        let s = ["[", &s, "]"].join("");
+            .join(", \n");
+        let s = ["[", &s, "] => "].join("");
 
         legend_tuples.push((
             s,
-            (0, 1 + i)
+            (0.0, 0.5 + i as f32),
+            *hue_matrix.index((random_i, random_j)) as f64
         ));
     }
 
     chart_for_legend.draw_series(
-       legend_tuples.into_iter().map(|t| {
-        Text::new(
-            t.0,
+       legend_tuples.iter().map(|t| {
+        return Text::new(
+            t.0.clone(),
             t.1,
-            ("sans-serif", 10).into_font().color(&BLACK),
-        )
+            ("sans-serif", 12).into_font().color(&BLACK),
+        );
     }))?;
+
+    chart_for_legend.draw_series(
+        legend_tuples.iter().map(|t| {
+            let (r, g, b) = hsl_to_rgb(t.2, saturation, lightness);
+            let style = ShapeStyle {
+                color: RGBAColor(r as u8, g as u8, b as u8, 1.0),
+                filled: true,
+                stroke_width: 3,
+            };
+            return Rectangle::new(
+                [(1.1, t.1.1 - 0.3), (1.8, t.1.1 + 0.3)],
+                style
+            );
+     }))?;
 
     canvas_tuple.0.present()?;
     canvas_tuple.1.present()?;
