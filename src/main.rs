@@ -5,7 +5,6 @@ mod basic_modules;
 use basic_modules::simple_som_real_field;
 use basic_modules::visual_modules::{print_matrix_of_vectors, 
                                     basic_visualization};
-                                    
 //std imports
 use std::env;
 use std::fs;
