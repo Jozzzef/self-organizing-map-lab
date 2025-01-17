@@ -12,6 +12,10 @@ pub use visual_modules::print_matrix_of_vectors;
 //shared globals
 pub mod shared;
 use shared::DistanceMetric;
+
+
+
+
 // SIMPLE SOMs based on types
 
 /// Simple SOM using f64 values

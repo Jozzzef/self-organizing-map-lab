@@ -2,6 +2,7 @@
 
 ##### Foundational Stage:
 1. simple SOM method (status: real field needs some tweaks though almost done; other algebras need operations added to it before implementing SOMs)
+- likely move to a Real Field only architecture
 2. SOM visualization method(s) (status: bulk of the real field on is done, much work need to be done on it through)
     1. add a 3d version as well to better display the vectors
     2. add discrete contour map?
